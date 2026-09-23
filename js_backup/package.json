@@ -1,0 +1,17 @@
+{
+  "name": "html5-light-gun-arcade",
+  "version": "1.0.0",
+  "description": "HTML5 Arcade Light Gun Game with TOML config and Pixel Art style",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "npx serve -l 8080"
+  },
+  "dependencies": {
+    "smol-toml": "^1.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.2",
+    "serve-handler": "^6.1.5"
+  }
+}
