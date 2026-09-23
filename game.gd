@@ -71,18 +71,14 @@ func _ready():
 	setup_audio()
 	queue_redraw()
 
-func setup_audio():
-	var sfx_names = ["shoot", "dry_fire", "reload", "hit_outlaw", "hit_civilian", "hurt"]
-	for sfx in sfx_names:
-		var p = AudioStreamPlayer.new()
-		add_child(p)
-		audio_players[sfx] = p
-
-func play_sfx(sfx_name):
-	if audio_players.has(sfx_name):
-		var p = audio_players[sfx_name]
-		if p.stream:
-			p.play()
+func parse_toml_val(val_str: String):
+	if val_str.begins_with("\"") and val_str.ends_with("\""):
+		return val_str.substr(1, val_str.length() - 2)
+	elif val_str.is_valid_float():
+		return val_str.to_float()
+	elif val_str.is_valid_int():
+		return val_str.to_int()
+	return val_str
 
 func load_toml_config():
 	var file_path = "res://config/scenes.toml"
@@ -183,14 +179,153 @@ func parse_simple_toml(text: String):
 				"outlaw_ratio": float(w.get("outlaw_ratio", 0.75))
 			})
 
-func parse_toml_val(val_str: String):
-	if val_str.begins_with("\"") and val_str.ends_with("\""):
-		return val_str.substr(1, val_str.length() - 2)
-	elif val_str.is_valid_float():
-		return val_str.to_float()
-	elif val_str.is_valid_int():
-		return val_str.to_int()
-	return val_str
+func setup_audio():
+	var sfx_dict = {
+		"shoot": generate_gunshot_wav(),
+		"dry_fire": generate_dry_fire_wav(),
+		"reload": generate_reload_wav(),
+		"hit_outlaw": generate_hit_outlaw_wav(),
+		"hit_civilian": generate_hit_civilian_wav(),
+		"hurt": generate_hurt_wav()
+	}
+
+	for sfx_name in sfx_dict.keys():
+		var p = AudioStreamPlayer.new()
+		p.stream = sfx_dict[sfx_name]
+		add_child(p)
+		audio_players[sfx_name] = p
+
+func play_sfx(sfx_name: String):
+	if audio_players.has(sfx_name):
+		var p = audio_players[sfx_name]
+		if p and p.stream:
+			p.play()
+
+func generate_gunshot_wav() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.25
+	var num_samples = int(sample_rate * duration)
+	var byte_array = PackedByteArray()
+	byte_array.resize(num_samples)
+
+	for i in range(num_samples):
+		var t = float(i) / float(num_samples)
+		var envelope = exp(-t * 12.0)
+		var noise = (randf() * 2.0 - 1.0) * envelope
+		var val = int(clamp(noise * 127.0, -128.0, 127.0))
+		byte_array[i] = (val + 256) % 256
+
+	var wav = AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.data = byte_array
+	return wav
+
+func generate_dry_fire_wav() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.05
+	var num_samples = int(sample_rate * duration)
+	var byte_array = PackedByteArray()
+	byte_array.resize(num_samples)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var freq = 800.0 - t * 10000.0
+		var square = 1.0 if fmod(t * freq, 1.0) < 0.5 else -1.0
+		var envelope = (1.0 - t / duration)
+		var val = int(clamp(square * envelope * 80.0, -128.0, 127.0))
+		byte_array[i] = (val + 256) % 256
+
+	var wav = AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.data = byte_array
+	return wav
+
+func generate_reload_wav() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.35
+	var num_samples = int(sample_rate * duration)
+	var byte_array = PackedByteArray()
+	byte_array.resize(num_samples)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var click_phase = fmod(t, 0.1)
+		var val = 0
+		if click_phase < 0.04:
+			var env = (1.0 - click_phase / 0.04)
+			var sig = sin(t * 2000.0 * TAU) * env
+			val = int(clamp(sig * 100.0, -128.0, 127.0))
+		byte_array[i] = (val + 256) % 256
+
+	var wav = AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.data = byte_array
+	return wav
+
+func generate_hit_outlaw_wav() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.2
+	var num_samples = int(sample_rate * duration)
+	var byte_array = PackedByteArray()
+	byte_array.resize(num_samples)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var freq = 523.25 if t < 0.1 else 659.25
+		var sig = sin(t * freq * TAU) * (1.0 - t / duration)
+		var val = int(clamp(sig * 110.0, -128.0, 127.0))
+		byte_array[i] = (val + 256) % 256
+
+	var wav = AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.data = byte_array
+	return wav
+
+func generate_hit_civilian_wav() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.3
+	var num_samples = int(sample_rate * duration)
+	var byte_array = PackedByteArray()
+	byte_array.resize(num_samples)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var freq = 220.0 - t * 100.0
+		var saw = (fmod(t * freq, 1.0) * 2.0 - 1.0)
+		var env = (1.0 - t / duration)
+		var val = int(clamp(saw * env * 110.0, -128.0, 127.0))
+		byte_array[i] = (val + 256) % 256
+
+	var wav = AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.data = byte_array
+	return wav
+
+func generate_hurt_wav() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.25
+	var num_samples = int(sample_rate * duration)
+	var byte_array = PackedByteArray()
+	byte_array.resize(num_samples)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var freq = 150.0 - t * 300.0
+		var saw = (fmod(t * freq, 1.0) * 2.0 - 1.0)
+		var env = (1.0 - t / duration)
+		var val = int(clamp(saw * env * 120.0, -128.0, 127.0))
+		byte_array[i] = (val + 256) % 256
+
+	var wav = AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.data = byte_array
+	return wav
 
 func start_new_game():
 	score = 0
@@ -465,7 +600,7 @@ func draw_hud():
 	draw_string(font, Vector2(160, 34), "HIGH: " + str(high_score), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("f1c40f"))
 
 	var curr_wave = waves[current_wave_index] if current_wave_index < waves.size() else waves[0]
-	draw_string(font, Vector2(512 - 100, 34), curr_wave["name"], HORIZONTAL_ALIGNMENT_CENTER, -1, 18, Color("ffffff"))
+	draw_string(font, Vector2(362, 34), curr_wave["name"], HORIZONTAL_ALIGNMENT_CENTER, 300, 18, Color("ffffff"))
 
 	var hp_str = "HP: "
 	for i in range(lives):
