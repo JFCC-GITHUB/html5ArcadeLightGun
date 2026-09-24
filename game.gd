@@ -4,7 +4,7 @@ enum GameState { START_SCREEN, PLAYING, WAVE_CLEAR, GAME_OVER }
 
 var current_state = GameState.START_SCREEN
 
-# Game Configuration Settings
+# Game Configuration
 var clip_size = 6
 var max_lives = 3
 var starting_lives = 3
@@ -14,6 +14,7 @@ var high_score = 0
 var lives = 3
 var ammo = 6
 var is_reloading = false
+var combo_streak = 0
 
 var current_wave_index = 0
 var wave_time_left = 30.0
@@ -22,23 +23,27 @@ var spawn_timer = 0.0
 var crosshair_pos = Vector2(512, 384)
 var active_targets = []
 var bullet_holes = []
+var particles = []
+var floating_texts = []
 
 var recoil_offset = 0.0
 var muzzle_flash_timer = 0.0
+var damage_flash_timer = 0.0
+var screen_shake_amount = 0.0
 
 var covers = [
-	{ "id": "window_top_left", "x": 240, "y": 200, "w": 60, "h": 80 },
-	{ "id": "window_top_right", "x": 724, "y": 200, "w": 60, "h": 80 },
-	{ "id": "door_bottom_left", "x": 200, "y": 440, "w": 70, "h": 110 },
-	{ "id": "door_bottom_right", "x": 754, "y": 440, "w": 70, "h": 110 },
-	{ "id": "balcony_center", "x": 480, "y": 260, "w": 64, "h": 90 }
+	{ "id": "window_top_left", "x": 235, "y": 190, "w": 70, "h": 90 },
+	{ "id": "window_top_right", "x": 715, "y": 190, "w": 70, "h": 90 },
+	{ "id": "door_bottom_left", "x": 195, "y": 430, "w": 80, "h": 120 },
+	{ "id": "door_bottom_right", "x": 749, "y": 430, "w": 80, "h": 120 },
+	{ "id": "balcony_center", "x": 472, "y": 250, "w": 80, "h": 100 }
 ]
 
 var waves = [
 	{
 		"name": "Wave 1: Dusty Outskirts",
 		"duration_sec": 30,
-		"spawn_interval_ms": 1500,
+		"spawn_interval_ms": 1400,
 		"target_visible_duration_ms": 2200,
 		"points_outlaw": 100,
 		"points_civilian_penalty": 200,
@@ -47,7 +52,7 @@ var waves = [
 	{
 		"name": "Wave 2: High Noon Showdown",
 		"duration_sec": 30,
-		"spawn_interval_ms": 1100,
+		"spawn_interval_ms": 1000,
 		"target_visible_duration_ms": 1600,
 		"points_outlaw": 150,
 		"points_civilian_penalty": 250,
@@ -56,7 +61,7 @@ var waves = [
 	{
 		"name": "Wave 3: Outlaw Rampage",
 		"duration_sec": 35,
-		"spawn_interval_ms": 800,
+		"spawn_interval_ms": 750,
 		"target_visible_duration_ms": 1200,
 		"points_outlaw": 200,
 		"points_civilian_penalty": 300,
@@ -107,7 +112,6 @@ func parse_simple_toml(text: String):
 	var lines = text.split("\n")
 	var temp_covers = []
 	var temp_waves = []
-
 	var current_item = {}
 
 	for raw_line in lines:
@@ -140,8 +144,7 @@ func parse_simple_toml(text: String):
 		var parts = line.split("=", false, 1)
 		if parts.size() == 2:
 			var key = parts[0].strip_edges()
-			var val_str = parts[1].strip_edges()
-			var val = parse_toml_val(val_str)
+			var val = parse_toml_val(parts[1].strip_edges())
 
 			if current_section == "game":
 				if key == "clip_size": clip_size = int(val)
@@ -162,8 +165,8 @@ func parse_simple_toml(text: String):
 				"id": c.get("id", ""),
 				"x": int(c.get("x", 0)),
 				"y": int(c.get("y", 0)),
-				"w": int(c.get("width", 50)),
-				"h": int(c.get("height", 80))
+				"w": int(c.get("width", 70)),
+				"h": int(c.get("height", 90))
 			})
 
 	if temp_waves.size() > 0:
@@ -330,6 +333,7 @@ func generate_hurt_wav() -> AudioStreamWAV:
 func start_new_game():
 	score = 0
 	lives = starting_lives
+	combo_streak = 0
 	current_wave_index = 0
 	start_wave(0)
 
@@ -342,6 +346,8 @@ func start_wave(idx):
 	is_reloading = false
 	active_targets.clear()
 	bullet_holes.clear()
+	particles.clear()
+	floating_texts.clear()
 	current_state = GameState.PLAYING
 
 func _input(event):
@@ -377,6 +383,29 @@ func handle_action_at_pos(pos: Vector2):
 
 	shoot(pos)
 
+func add_hit_particles(pos: Vector2, color: Color, count: int = 15):
+	for i in range(count):
+		var angle = randf() * TAU
+		var speed = randf_range(80.0, 220.0)
+		particles.append({
+			"pos": pos,
+			"vel": Vector2(cos(angle), sin(angle)) * speed,
+			"color": color,
+			"life": 0.35,
+			"max_life": 0.35,
+			"size": randf_range(3.0, 6.0)
+		})
+
+func add_floating_text(text: String, pos: Vector2, color: Color, font_size: int = 22):
+	floating_texts.append({
+		"text": text,
+		"pos": pos,
+		"color": color,
+		"life": 0.7,
+		"max_life": 0.7,
+		"font_size": font_size
+	})
+
 func shoot(pos: Vector2):
 	if is_reloading or ammo <= 0:
 		play_sfx("dry_fire")
@@ -396,19 +425,46 @@ func shoot(pos: Vector2):
 		if rect.has_point(pos):
 			hit_index = i
 			var curr_wave = waves[current_wave_index]
+
 			if t["type"] == "outlaw" or t["type"] == "fast_outlaw":
-				var bonus = 50 if t["type"] == "fast_outlaw" else 0
-				score += int(curr_wave["points_outlaw"]) + bonus
+				combo_streak += 1
+				var is_headshot = (pos.y < t["y"] + t["h"] * 0.35)
+				var bonus = 100 if is_headshot else (50 if t["type"] == "fast_outlaw" else 0)
+				var pts = int(curr_wave["points_outlaw"]) + bonus + (combo_streak * 20)
+				score += pts
 				if score > high_score:
 					high_score = score
+
+				add_hit_particles(pos, Color("f1c40f") if is_headshot else Color("e74c3c"), 20)
+
+				if is_headshot:
+					add_floating_text("HEADSHOT! +" + str(pts), pos + Vector2(-40, -10), Color("f1c40f"), 26)
+				elif combo_streak > 1:
+					add_floating_text(str(combo_streak) + "x COMBO! +" + str(pts), pos + Vector2(-30, -10), Color("e67e22"), 22)
+				else:
+					add_floating_text("+" + str(pts), pos + Vector2(-20, -10), Color("ffffff"), 20)
+
 				play_sfx("hit_outlaw")
 			else:
-				score = max(0, score - int(curr_wave["points_civilian_penalty"]))
+				# Hit Civilian
+				combo_streak = 0
+				var penalty = int(curr_wave["points_civilian_penalty"])
+				score = max(0, score - penalty)
+
+				add_hit_particles(pos, Color("27ae60"), 20)
+				add_floating_text("NOOO! CIVILIAN HIT -" + str(penalty), pos + Vector2(-80, -10), Color("e74c3c"), 24)
 				play_sfx("hit_civilian")
+
+				# Flash red screen on penalty
+				damage_flash_timer = 0.15
+				screen_shake_amount = 8.0
 			break
 
 	if hit_index != -1:
 		active_targets.remove_at(hit_index)
+	else:
+		# Missed shoot
+		add_hit_particles(pos, Color("7f8c8d"), 6)
 
 func reload():
 	if current_state != GameState.PLAYING or is_reloading or ammo == clip_size:
@@ -424,18 +480,40 @@ func reload():
 func _process(delta):
 	if recoil_offset > 0.0:
 		recoil_offset = max(0.0, recoil_offset - delta * 120.0)
-		queue_redraw()
 
 	if muzzle_flash_timer > 0.0:
 		muzzle_flash_timer = max(0.0, muzzle_flash_timer - delta)
-		queue_redraw()
 
+	if damage_flash_timer > 0.0:
+		damage_flash_timer = max(0.0, damage_flash_timer - delta)
+
+	if screen_shake_amount > 0.0:
+		screen_shake_amount = max(0.0, screen_shake_amount - delta * 30.0)
+
+	# Update particles
+	for i in range(particles.size() - 1, -1, -1):
+		var p = particles[i]
+		p["pos"] += p["vel"] * delta
+		p["life"] -= delta
+		if p["life"] <= 0:
+			particles.remove_at(i)
+
+	# Update floating arcade text
+	for i in range(floating_texts.size() - 1, -1, -1):
+		var ft = floating_texts[i]
+		ft["pos"].y -= delta * 50.0 # Float upward
+		ft["life"] -= delta
+		if ft["life"] <= 0:
+			floating_texts.remove_at(i)
+
+	# Clean old bullet holes (5s)
 	var now_msec = Time.get_ticks_msec()
 	for i in range(bullet_holes.size() - 1, -1, -1):
 		if now_msec - bullet_holes[i]["time"] > 5000:
 			bullet_holes.remove_at(i)
 
 	if current_state != GameState.PLAYING:
+		queue_redraw()
 		return
 
 	var curr_wave = waves[current_wave_index]
@@ -459,6 +537,9 @@ func _process(delta):
 		if t["timer"] <= 0.0:
 			if t["type"] == "outlaw" or t["type"] == "fast_outlaw":
 				lives -= 1
+				combo_streak = 0
+				damage_flash_timer = 0.25
+				screen_shake_amount = 14.0
 				play_sfx("hurt")
 				if lives <= 0:
 					current_state = GameState.GAME_OVER
@@ -501,19 +582,31 @@ func spawn_target():
 	})
 
 func _draw():
+	if screen_shake_amount > 0.0:
+		var offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * screen_shake_amount
+		draw_set_transform(offset)
+
 	draw_background()
 	draw_targets()
 	draw_bullet_holes()
+	draw_particles()
 	draw_gun_overlay()
+
 	if muzzle_flash_timer > 0.0:
 		draw_muzzle_flash()
+
 	draw_crosshair()
+	draw_floating_texts()
 	draw_hud()
+
+	if damage_flash_timer > 0.0:
+		draw_rect(Rect2(0, 0, 1024, 768), Color(0.9, 0.1, 0.1, 0.35))
 
 	if current_state != GameState.PLAYING:
 		draw_overlay_screens()
 
 func draw_background():
+	# Desert Sunset Sky
 	draw_rect(Rect2(0, 0, 1024, 350), Color("e67e22"))
 	var pts = PackedVector2Array([
 		Vector2(0, 350), Vector2(80, 280), Vector2(200, 280),
@@ -522,26 +615,32 @@ func draw_background():
 	])
 	draw_colored_polygon(pts, Color("78281f"))
 
+	# Ground Dirt
 	draw_rect(Rect2(0, 350, 1024, 418), Color("5c2c16"))
 
+	# 2-Story Saloon Building
 	draw_rect(Rect2(180, 120, 664, 460), Color("4a2511"))
 	for py in range(140, 580, 20):
 		draw_line(Vector2(180, py), Vector2(844, py), Color("311709"), 2.0)
 
+	# Overhang Roof & Saloon Sign
 	draw_rect(Rect2(165, 105, 694, 20), Color("271207"))
 	draw_rect(Rect2(360, 75, 304, 40), Color("f39c12"))
 	draw_rect(Rect2(360, 75, 304, 40), Color("271207"), false, 4.0)
 	draw_string(ThemeDB.fallback_font, Vector2(512 - 70, 103), "- SALOON -", HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("271207"))
 
+	# Balcony Fence
 	draw_rect(Rect2(170, 280, 684, 16), Color("311709"))
 	for rx in range(180, 844, 30):
 		draw_rect(Rect2(rx, 240, 6, 40), Color("5c2c16"))
 
-	draw_rect(Rect2(240, 200, 60, 80), Color("170b04"))
-	draw_rect(Rect2(724, 200, 60, 80), Color("170b04"))
-	draw_rect(Rect2(200, 440, 70, 110), Color("170b04"))
-	draw_rect(Rect2(754, 440, 70, 110), Color("170b04"))
+	# Windows & Swinging Doors
+	draw_rect(Rect2(235, 190, 70, 90), Color("170b04"))
+	draw_rect(Rect2(715, 190, 70, 90), Color("170b04"))
+	draw_rect(Rect2(195, 430, 80, 120), Color("170b04"))
+	draw_rect(Rect2(749, 430, 80, 120), Color("170b04"))
 
+	# Cover Barrels
 	draw_barrel(Vector2(380, 460))
 	draw_barrel(Vector2(590, 460))
 
@@ -557,13 +656,116 @@ func draw_targets():
 		var render_y = t["y"] + t["h"] * (1.0 - pop_ratio)
 		var visible_h = t["h"] * pop_ratio
 
-		var col = Color("b03a2e") if t["type"] == "outlaw" else (Color("1a5276") if t["type"] == "fast_outlaw" else Color("27ae60"))
-		draw_rect(Rect2(t["x"], render_y, t["w"], visible_h), col)
+		var pos = Vector2(t["x"], render_y)
+		var size = Vector2(t["w"], visible_h)
 
-		if pop_ratio > 0.3:
-			draw_rect(Rect2(t["x"] + 15, render_y + 5, 30, 20), Color("f5cba7"))
-			if t["type"] == "civilian":
-				draw_rect(Rect2(t["x"] + 10, render_y - 5, 40, 10), Color("f4d03f"))
+		if t["type"] == "outlaw":
+			draw_detailed_outlaw(pos, size, pop_ratio)
+		elif t["type"] == "fast_outlaw":
+			draw_detailed_fast_outlaw(pos, size, pop_ratio)
+		else:
+			draw_detailed_civilian(pos, size, pop_ratio)
+
+func draw_detailed_outlaw(pos: Vector2, size: Vector2, pop_ratio: float):
+	var cx = pos.x + size.x / 2.0
+	var top = pos.y
+
+	# Cowboy Hat
+	if pop_ratio > 0.15:
+		var hat_brim = PackedVector2Array([
+			Vector2(cx - 34, top + 18), Vector2(cx, top + 10), Vector2(cx + 34, top + 18),
+			Vector2(cx + 30, top + 24), Vector2(cx, top + 16), Vector2(cx - 30, top + 24)
+		])
+		draw_colored_polygon(hat_brim, Color("3e1f0c"))
+		draw_rect(Rect2(cx - 18, top + 2, 36, 14), Color("4a2511")) # Hat Crown
+		draw_rect(Rect2(cx - 18, top + 13, 36, 3), Color("b03a2e")) # Red Band
+
+	# Head & Sinister Eyes
+	if pop_ratio > 0.25:
+		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("f5cba7")) # Skin
+		# Angry Eyebrows & Eyes
+		draw_line(Vector2(cx - 13, top + 21), Vector2(cx - 3, top + 24), Color("1c2833"), 3.0)
+		draw_line(Vector2(cx + 3, top + 24), Vector2(cx + 13, top + 21), Color("1c2833"), 3.0)
+		draw_circle(Vector2(cx - 7, top + 26), 2.5, Color("e74c3c")) # Glowing Outlaw Eyes
+		draw_circle(Vector2(cx + 7, top + 26), 2.5, Color("e74c3c"))
+		# Red Bandit Mask
+		var bandana = PackedVector2Array([
+			Vector2(cx - 16, top + 30), Vector2(cx + 16, top + 30),
+			Vector2(cx + 11, top + 46), Vector2(cx, top + 50), Vector2(cx - 11, top + 46)
+		])
+		draw_colored_polygon(bandana, Color("c0392b"))
+
+	# Torso & Revolver Weapon
+	if pop_ratio > 0.45:
+		draw_rect(Rect2(cx - 20, top + 46, 40, 40), Color("283747")) # Shirt
+		draw_rect(Rect2(cx - 24, top + 46, 12, 40), Color("78281f")) # Vest Left
+		draw_rect(Rect2(cx + 12, top + 46, 12, 40), Color("78281f")) # Vest Right
+		# Gun in raised hand
+		draw_rect(Rect2(cx + 22, top + 40, 22, 7), Color("515a5a")) # Steel Barrel
+		draw_rect(Rect2(cx + 20, top + 45, 7, 14), Color("3e1f0c")) # Handle
+
+func draw_detailed_fast_outlaw(pos: Vector2, size: Vector2, pop_ratio: float):
+	var cx = pos.x + size.x / 2.0
+	var top = pos.y
+
+	# Sombrero / Wide Dark Hat
+	if pop_ratio > 0.15:
+		draw_rect(Rect2(cx - 36, top + 14, 72, 7), Color("17202a"))
+		draw_rect(Rect2(cx - 20, top + 0, 40, 16), Color("1c2833"))
+		draw_rect(Rect2(cx - 20, top + 13, 40, 3), Color("f1c40f")) # Gold Trim
+
+	# Head & Eyepatch
+	if pop_ratio > 0.25:
+		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("edbb99")) # Darker Skin
+		draw_line(Vector2(cx - 15, top + 20), Vector2(cx + 15, top + 26), Color("17202a"), 2.0)
+		draw_rect(Rect2(cx - 11, top + 22, 9, 9), Color("17202a")) # Patch
+		draw_circle(Vector2(cx + 7, top + 25), 2.5, Color("f1c40f")) # Yellow Eye
+		# Mustache
+		var mustache = PackedVector2Array([
+			Vector2(cx - 14, top + 34), Vector2(cx + 14, top + 34), Vector2(cx, top + 39)
+		])
+		draw_colored_polygon(mustache, Color("3e1f0c"))
+
+	# Duster Coat & Dual Pistols
+	if pop_ratio > 0.45:
+		draw_rect(Rect2(cx - 24, top + 42, 48, 44), Color("1a5276")) # Blue Duster Coat
+		draw_rect(Rect2(cx - 32, top + 36, 14, 7), Color("7f8c8d")) # Left Pistol
+		draw_rect(Rect2(cx + 18, top + 36, 14, 7), Color("7f8c8d")) # Right Pistol
+
+func draw_detailed_civilian(pos: Vector2, size: Vector2, pop_ratio: float):
+	var cx = pos.x + size.x / 2.0
+	var top = pos.y
+
+	# Bonnet / Hair
+	if pop_ratio > 0.15:
+		draw_circle(Vector2(cx, top + 16), 20.0, Color("f4d03f")) # Blonde Bonnet/Hair
+
+	# Surprised Face
+	if pop_ratio > 0.25:
+		draw_rect(Rect2(cx - 14, top + 16, 28, 24), Color("f5cba7"))
+		draw_circle(Vector2(cx - 7, top + 22), 3.5, Color("2980b9")) # Blue Eyes
+		draw_circle(Vector2(cx + 7, top + 22), 3.5, Color("2980b9"))
+		draw_circle(Vector2(cx, top + 32), 4.5, Color("78281f")) # Open Mouth
+
+	# Dress & Raised Surrendered Arms
+	if pop_ratio > 0.45:
+		draw_rect(Rect2(cx - 22, top + 38, 44, 44), Color("27ae60")) # Prairie Dress
+		draw_rect(Rect2(cx - 12, top + 42, 24, 40), Color("ffffff")) # White Apron
+		draw_rect(Rect2(cx - 28, top + 10, 9, 30), Color("f5cba7")) # Raised Left Arm
+		draw_rect(Rect2(cx + 19, top + 10, 9, 30), Color("f5cba7")) # Raised Right Arm
+
+func draw_particles():
+	for p in particles:
+		var alpha = p["life"] / p["max_life"]
+		var col = Color(p["color"].r, p["color"].g, p["color"].b, alpha)
+		draw_circle(p["pos"], p["size"], col)
+
+func draw_floating_texts():
+	var font = ThemeDB.fallback_font
+	for ft in floating_texts:
+		var alpha = ft["life"] / ft["max_life"]
+		var col = Color(ft["color"].r, ft["color"].g, ft["color"].b, alpha)
+		draw_string(font, ft["pos"], ft["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, ft["font_size"], col)
 
 func draw_bullet_holes():
 	for h in bullet_holes:
