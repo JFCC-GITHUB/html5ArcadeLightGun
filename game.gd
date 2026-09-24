@@ -1,13 +1,23 @@
 extends Node2D
 
-enum GameState { START_SCREEN, PLAYING, WAVE_CLEAR, GAME_OVER }
+enum GameState { START_SCREEN, DIFFICULTY_SELECT, STORY_CUTSCENE, PLAYING, WAVE_CLEAR, GAME_OVER }
 
 var current_state = GameState.START_SCREEN
+var selected_difficulty = "medium" # easy | medium | hard
 
-# Game Configuration
+# Story & Configuration
+var story_title = "THE SALOON SIEGE"
+var story_text = "The year is 1888. Black Bart's gang has overtaken Red Canyon! They've barricaded the Saloon and taken hostages. Grab your revolvers, Sheriff - shoot fast, shoot straight, and save the town!"
+
 var clip_size = 6
 var max_lives = 3
 var starting_lives = 3
+
+var difficulty_multipliers = {
+	"easy": { "name": "EASY (GREENHORN)", "target_mult": 1.3, "spawn_mult": 1.2, "lives": 5 },
+	"medium": { "name": "MEDIUM (GUNSLINGER)", "target_mult": 1.0, "spawn_mult": 1.0, "lives": 3 },
+	"hard": { "name": "HARD (DESPERADO)", "target_mult": 0.75, "spawn_mult": 0.8, "lives": 2 }
+}
 
 var score = 0
 var high_score = 0
@@ -41,6 +51,7 @@ var covers = [
 
 var waves = [
 	{
+		"stage": "STAGE 1: SALOON FRONT",
 		"name": "Wave 1: Dusty Outskirts",
 		"duration_sec": 30,
 		"spawn_interval_ms": 1400,
@@ -50,6 +61,7 @@ var waves = [
 		"outlaw_ratio": 0.8
 	},
 	{
+		"stage": "STAGE 2: BANK VAULT SIEGE",
 		"name": "Wave 2: High Noon Showdown",
 		"duration_sec": 30,
 		"spawn_interval_ms": 1000,
@@ -59,6 +71,7 @@ var waves = [
 		"outlaw_ratio": 0.7
 	},
 	{
+		"stage": "STAGE 3: TRAIN ROBBERY",
 		"name": "Wave 3: Outlaw Rampage",
 		"duration_sec": 35,
 		"spawn_interval_ms": 750,
@@ -66,6 +79,16 @@ var waves = [
 		"points_outlaw": 200,
 		"points_civilian_penalty": 300,
 		"outlaw_ratio": 0.65
+	},
+	{
+		"stage": "STAGE 4: OUTLAW HIDEOUT",
+		"name": "Wave 4: Black Bart's Revenge",
+		"duration_sec": 40,
+		"spawn_interval_ms": 600,
+		"target_visible_duration_ms": 1000,
+		"points_outlaw": 300,
+		"points_civilian_penalty": 400,
+		"outlaw_ratio": 0.6
 	}
 ]
 
@@ -88,16 +111,10 @@ func parse_toml_val(val_str: String):
 func load_toml_config():
 	var file_path = "res://config/scenes.toml"
 	if not FileAccess.file_exists(file_path):
-		file_path = "res://scenes.cfg"
-		if not FileAccess.file_exists(file_path):
-			ammo = clip_size
-			lives = starting_lives
-			return
+		return
 
 	var file = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
-		ammo = clip_size
-		lives = starting_lives
 		return
 
 	var text = file.get_as_text()
@@ -149,6 +166,9 @@ func parse_simple_toml(text: String):
 			if current_section == "game":
 				if key == "clip_size": clip_size = int(val)
 				elif key == "starting_lives": starting_lives = int(val)
+			elif current_section == "story":
+				if key == "title": story_title = str(val)
+				elif key == "text": story_text = str(val)
 			elif current_section == "covers" or current_section == "waves":
 				current_item[key] = val
 
@@ -173,6 +193,7 @@ func parse_simple_toml(text: String):
 		waves.clear()
 		for w in temp_waves:
 			waves.append({
+				"stage": str(w.get("stage", "STAGE 1")),
 				"name": str(w.get("name", "Wave")),
 				"duration_sec": int(w.get("duration_sec", 30)),
 				"spawn_interval_ms": int(w.get("spawn_interval_ms", 1500)),
@@ -332,7 +353,8 @@ func generate_hurt_wav() -> AudioStreamWAV:
 
 func start_new_game():
 	score = 0
-	lives = starting_lives
+	var diff_settings = difficulty_multipliers[selected_difficulty]
+	lives = diff_settings["lives"]
 	combo_streak = 0
 	current_wave_index = 0
 	start_wave(0)
@@ -367,14 +389,37 @@ func _input(event):
 		queue_redraw()
 
 func handle_action_at_pos(pos: Vector2):
-	if current_state != GameState.PLAYING:
-		if current_state == GameState.START_SCREEN or current_state == GameState.GAME_OVER:
-			start_new_game()
-		elif current_state == GameState.WAVE_CLEAR:
-			if current_wave_index + 1 < waves.size():
-				start_wave(current_wave_index + 1)
-			else:
-				start_new_game()
+	if current_state == GameState.START_SCREEN:
+		current_state = GameState.DIFFICULTY_SELECT
+		play_sfx("reload")
+		return
+	elif current_state == GameState.DIFFICULTY_SELECT:
+		# Check difficulty selection boxes
+		if pos.x >= 212 and pos.x <= 812:
+			if pos.y >= 300 and pos.y <= 360:
+				selected_difficulty = "easy"
+				current_state = GameState.STORY_CUTSCENE
+				play_sfx("shoot")
+			elif pos.y >= 380 and pos.y <= 440:
+				selected_difficulty = "medium"
+				current_state = GameState.STORY_CUTSCENE
+				play_sfx("shoot")
+			elif pos.y >= 460 and pos.y <= 520:
+				selected_difficulty = "hard"
+				current_state = GameState.STORY_CUTSCENE
+				play_sfx("shoot")
+		return
+	elif current_state == GameState.STORY_CUTSCENE:
+		start_new_game()
+		return
+	elif current_state == GameState.WAVE_CLEAR:
+		if current_wave_index + 1 < waves.size():
+			start_wave(current_wave_index + 1)
+		else:
+			current_state = GameState.DIFFICULTY_SELECT
+		return
+	elif current_state == GameState.GAME_OVER:
+		current_state = GameState.DIFFICULTY_SELECT
 		return
 
 	if pos.x >= 1024 - 160 and pos.y >= 768 - 60:
@@ -455,7 +500,6 @@ func shoot(pos: Vector2):
 				add_floating_text("NOOO! CIVILIAN HIT -" + str(penalty), pos + Vector2(-80, -10), Color("e74c3c"), 24)
 				play_sfx("hit_civilian")
 
-				# Flash red screen on penalty
 				damage_flash_timer = 0.15
 				screen_shake_amount = 8.0
 			break
@@ -463,7 +507,6 @@ func shoot(pos: Vector2):
 	if hit_index != -1:
 		active_targets.remove_at(hit_index)
 	else:
-		# Missed shoot
 		add_hit_particles(pos, Color("7f8c8d"), 6)
 
 func reload():
@@ -490,7 +533,6 @@ func _process(delta):
 	if screen_shake_amount > 0.0:
 		screen_shake_amount = max(0.0, screen_shake_amount - delta * 30.0)
 
-	# Update particles
 	for i in range(particles.size() - 1, -1, -1):
 		var p = particles[i]
 		p["pos"] += p["vel"] * delta
@@ -498,15 +540,13 @@ func _process(delta):
 		if p["life"] <= 0:
 			particles.remove_at(i)
 
-	# Update floating arcade text
 	for i in range(floating_texts.size() - 1, -1, -1):
 		var ft = floating_texts[i]
-		ft["pos"].y -= delta * 50.0 # Float upward
+		ft["pos"].y -= delta * 50.0
 		ft["life"] -= delta
 		if ft["life"] <= 0:
 			floating_texts.remove_at(i)
 
-	# Clean old bullet holes (5s)
 	var now_msec = Time.get_ticks_msec()
 	for i in range(bullet_holes.size() - 1, -1, -1):
 		if now_msec - bullet_holes[i]["time"] > 5000:
@@ -524,8 +564,9 @@ func _process(delta):
 		queue_redraw()
 		return
 
+	var diff_settings = difficulty_multipliers[selected_difficulty]
 	spawn_timer += delta * 1000.0
-	if spawn_timer >= curr_wave["spawn_interval_ms"]:
+	if spawn_timer >= float(curr_wave["spawn_interval_ms"]) * float(diff_settings["spawn_mult"]):
 		spawn_timer = 0.0
 		spawn_target()
 
@@ -565,10 +606,13 @@ func spawn_target():
 
 	var sel = free_covers[randi() % free_covers.size()]
 	var curr_wave = waves[current_wave_index]
+	var diff_settings = difficulty_multipliers[selected_difficulty]
 	var is_outlaw = randf() < float(curr_wave["outlaw_ratio"])
 	var t_type = "civilian"
 	if is_outlaw:
 		t_type = "fast_outlaw" if randf() < 0.3 else "outlaw"
+
+	var visible_duration = float(curr_wave["target_visible_duration_ms"]) * float(diff_settings["target_mult"])
 
 	active_targets.append({
 		"cover_id": sel["id"],
@@ -577,7 +621,7 @@ func spawn_target():
 		"w": sel["w"],
 		"h": sel["h"],
 		"type": t_type,
-		"timer": float(curr_wave["target_visible_duration_ms"]),
+		"timer": visible_duration,
 		"anim_timer": 0.0
 	})
 
@@ -606,7 +650,6 @@ func _draw():
 		draw_overlay_screens()
 
 func draw_background():
-	# Desert Sunset Sky
 	draw_rect(Rect2(0, 0, 1024, 350), Color("e67e22"))
 	var pts = PackedVector2Array([
 		Vector2(0, 350), Vector2(80, 280), Vector2(200, 280),
@@ -615,32 +658,26 @@ func draw_background():
 	])
 	draw_colored_polygon(pts, Color("78281f"))
 
-	# Ground Dirt
 	draw_rect(Rect2(0, 350, 1024, 418), Color("5c2c16"))
 
-	# 2-Story Saloon Building
 	draw_rect(Rect2(180, 120, 664, 460), Color("4a2511"))
 	for py in range(140, 580, 20):
 		draw_line(Vector2(180, py), Vector2(844, py), Color("311709"), 2.0)
 
-	# Overhang Roof & Saloon Sign
 	draw_rect(Rect2(165, 105, 694, 20), Color("271207"))
 	draw_rect(Rect2(360, 75, 304, 40), Color("f39c12"))
 	draw_rect(Rect2(360, 75, 304, 40), Color("271207"), false, 4.0)
 	draw_string(ThemeDB.fallback_font, Vector2(512 - 70, 103), "- SALOON -", HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("271207"))
 
-	# Balcony Fence
 	draw_rect(Rect2(170, 280, 684, 16), Color("311709"))
 	for rx in range(180, 844, 30):
 		draw_rect(Rect2(rx, 240, 6, 40), Color("5c2c16"))
 
-	# Windows & Swinging Doors
 	draw_rect(Rect2(235, 190, 70, 90), Color("170b04"))
 	draw_rect(Rect2(715, 190, 70, 90), Color("170b04"))
 	draw_rect(Rect2(195, 430, 80, 120), Color("170b04"))
 	draw_rect(Rect2(749, 430, 80, 120), Color("170b04"))
 
-	# Cover Barrels
 	draw_barrel(Vector2(380, 460))
 	draw_barrel(Vector2(590, 460))
 
@@ -670,89 +707,76 @@ func draw_detailed_outlaw(pos: Vector2, size: Vector2, pop_ratio: float):
 	var cx = pos.x + size.x / 2.0
 	var top = pos.y
 
-	# Cowboy Hat
 	if pop_ratio > 0.15:
 		var hat_brim = PackedVector2Array([
 			Vector2(cx - 34, top + 18), Vector2(cx, top + 10), Vector2(cx + 34, top + 18),
 			Vector2(cx + 30, top + 24), Vector2(cx, top + 16), Vector2(cx - 30, top + 24)
 		])
 		draw_colored_polygon(hat_brim, Color("3e1f0c"))
-		draw_rect(Rect2(cx - 18, top + 2, 36, 14), Color("4a2511")) # Hat Crown
-		draw_rect(Rect2(cx - 18, top + 13, 36, 3), Color("b03a2e")) # Red Band
+		draw_rect(Rect2(cx - 18, top + 2, 36, 14), Color("4a2511"))
+		draw_rect(Rect2(cx - 18, top + 13, 36, 3), Color("b03a2e"))
 
-	# Head & Sinister Eyes
 	if pop_ratio > 0.25:
-		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("f5cba7")) # Skin
-		# Angry Eyebrows & Eyes
+		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("f5cba7"))
 		draw_line(Vector2(cx - 13, top + 21), Vector2(cx - 3, top + 24), Color("1c2833"), 3.0)
 		draw_line(Vector2(cx + 3, top + 24), Vector2(cx + 13, top + 21), Color("1c2833"), 3.0)
-		draw_circle(Vector2(cx - 7, top + 26), 2.5, Color("e74c3c")) # Glowing Outlaw Eyes
+		draw_circle(Vector2(cx - 7, top + 26), 2.5, Color("e74c3c"))
 		draw_circle(Vector2(cx + 7, top + 26), 2.5, Color("e74c3c"))
-		# Red Bandit Mask
 		var bandana = PackedVector2Array([
 			Vector2(cx - 16, top + 30), Vector2(cx + 16, top + 30),
 			Vector2(cx + 11, top + 46), Vector2(cx, top + 50), Vector2(cx - 11, top + 46)
 		])
 		draw_colored_polygon(bandana, Color("c0392b"))
 
-	# Torso & Revolver Weapon
 	if pop_ratio > 0.45:
-		draw_rect(Rect2(cx - 20, top + 46, 40, 40), Color("283747")) # Shirt
-		draw_rect(Rect2(cx - 24, top + 46, 12, 40), Color("78281f")) # Vest Left
-		draw_rect(Rect2(cx + 12, top + 46, 12, 40), Color("78281f")) # Vest Right
-		# Gun in raised hand
-		draw_rect(Rect2(cx + 22, top + 40, 22, 7), Color("515a5a")) # Steel Barrel
-		draw_rect(Rect2(cx + 20, top + 45, 7, 14), Color("3e1f0c")) # Handle
+		draw_rect(Rect2(cx - 20, top + 46, 40, 40), Color("283747"))
+		draw_rect(Rect2(cx - 24, top + 46, 12, 40), Color("78281f"))
+		draw_rect(Rect2(cx + 12, top + 46, 12, 40), Color("78281f"))
+		draw_rect(Rect2(cx + 22, top + 40, 22, 7), Color("515a5a"))
+		draw_rect(Rect2(cx + 20, top + 45, 7, 14), Color("3e1f0c"))
 
 func draw_detailed_fast_outlaw(pos: Vector2, size: Vector2, pop_ratio: float):
 	var cx = pos.x + size.x / 2.0
 	var top = pos.y
 
-	# Sombrero / Wide Dark Hat
 	if pop_ratio > 0.15:
 		draw_rect(Rect2(cx - 36, top + 14, 72, 7), Color("17202a"))
 		draw_rect(Rect2(cx - 20, top + 0, 40, 16), Color("1c2833"))
-		draw_rect(Rect2(cx - 20, top + 13, 40, 3), Color("f1c40f")) # Gold Trim
+		draw_rect(Rect2(cx - 20, top + 13, 40, 3), Color("f1c40f"))
 
-	# Head & Eyepatch
 	if pop_ratio > 0.25:
-		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("edbb99")) # Darker Skin
+		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("edbb99"))
 		draw_line(Vector2(cx - 15, top + 20), Vector2(cx + 15, top + 26), Color("17202a"), 2.0)
-		draw_rect(Rect2(cx - 11, top + 22, 9, 9), Color("17202a")) # Patch
-		draw_circle(Vector2(cx + 7, top + 25), 2.5, Color("f1c40f")) # Yellow Eye
-		# Mustache
+		draw_rect(Rect2(cx - 11, top + 22, 9, 9), Color("17202a"))
+		draw_circle(Vector2(cx + 7, top + 25), 2.5, Color("f1c40f"))
 		var mustache = PackedVector2Array([
 			Vector2(cx - 14, top + 34), Vector2(cx + 14, top + 34), Vector2(cx, top + 39)
 		])
 		draw_colored_polygon(mustache, Color("3e1f0c"))
 
-	# Duster Coat & Dual Pistols
 	if pop_ratio > 0.45:
-		draw_rect(Rect2(cx - 24, top + 42, 48, 44), Color("1a5276")) # Blue Duster Coat
-		draw_rect(Rect2(cx - 32, top + 36, 14, 7), Color("7f8c8d")) # Left Pistol
-		draw_rect(Rect2(cx + 18, top + 36, 14, 7), Color("7f8c8d")) # Right Pistol
+		draw_rect(Rect2(cx - 24, top + 42, 48, 44), Color("1a5276"))
+		draw_rect(Rect2(cx - 32, top + 36, 14, 7), Color("7f8c8d"))
+		draw_rect(Rect2(cx + 18, top + 36, 14, 7), Color("7f8c8d"))
 
 func draw_detailed_civilian(pos: Vector2, size: Vector2, pop_ratio: float):
 	var cx = pos.x + size.x / 2.0
 	var top = pos.y
 
-	# Bonnet / Hair
 	if pop_ratio > 0.15:
-		draw_circle(Vector2(cx, top + 16), 20.0, Color("f4d03f")) # Blonde Bonnet/Hair
+		draw_circle(Vector2(cx, top + 16), 20.0, Color("f4d03f"))
 
-	# Surprised Face
 	if pop_ratio > 0.25:
 		draw_rect(Rect2(cx - 14, top + 16, 28, 24), Color("f5cba7"))
-		draw_circle(Vector2(cx - 7, top + 22), 3.5, Color("2980b9")) # Blue Eyes
+		draw_circle(Vector2(cx - 7, top + 22), 3.5, Color("2980b9"))
 		draw_circle(Vector2(cx + 7, top + 22), 3.5, Color("2980b9"))
-		draw_circle(Vector2(cx, top + 32), 4.5, Color("78281f")) # Open Mouth
+		draw_circle(Vector2(cx, top + 32), 4.5, Color("78281f"))
 
-	# Dress & Raised Surrendered Arms
 	if pop_ratio > 0.45:
-		draw_rect(Rect2(cx - 22, top + 38, 44, 44), Color("27ae60")) # Prairie Dress
-		draw_rect(Rect2(cx - 12, top + 42, 24, 40), Color("ffffff")) # White Apron
-		draw_rect(Rect2(cx - 28, top + 10, 9, 30), Color("f5cba7")) # Raised Left Arm
-		draw_rect(Rect2(cx + 19, top + 10, 9, 30), Color("f5cba7")) # Raised Right Arm
+		draw_rect(Rect2(cx - 22, top + 38, 44, 44), Color("27ae60"))
+		draw_rect(Rect2(cx - 12, top + 42, 24, 40), Color("ffffff"))
+		draw_rect(Rect2(cx - 28, top + 10, 9, 30), Color("f5cba7"))
+		draw_rect(Rect2(cx + 19, top + 10, 9, 30), Color("f5cba7"))
 
 func draw_particles():
 	for p in particles:
@@ -793,8 +817,23 @@ func draw_crosshair():
 	draw_line(crosshair_pos + Vector2(0, 8), crosshair_pos + Vector2(0, 16), Color("e74c3c"), 2.0)
 	draw_rect(Rect2(crosshair_pos - Vector2(1, 1), Vector2(2, 2)), Color("f1c40f"))
 
+func draw_heart_icon(pos: Vector2, scale_factor: float = 1.0):
+	# Drawing a fancy vector heart icon
+	var red = Color("e74c3c")
+	var dark_red = Color("922b21")
+	# Left & Right heart circles
+	draw_circle(pos + Vector2(-5 * scale_factor, -3 * scale_factor), 6.0 * scale_factor, red)
+	draw_circle(pos + Vector2(5 * scale_factor, -3 * scale_factor), 6.0 * scale_factor, red)
+	# Bottom heart triangle tip
+	var tri = PackedVector2Array([
+		pos + Vector2(-11 * scale_factor, -2 * scale_factor),
+		pos + Vector2(11 * scale_factor, -2 * scale_factor),
+		pos + Vector2(0 * scale_factor, 11 * scale_factor)
+	])
+	draw_colored_polygon(tri, red)
+
 func draw_hud():
-	draw_rect(Rect2(0, 0, 1024, 54), Color(0.1, 0.05, 0.01, 0.85))
+	draw_rect(Rect2(0, 0, 1024, 54), Color(0.1, 0.05, 0.01, 0.88))
 	draw_rect(Rect2(0, 0, 1024, 54), Color("c85a17"), false, 3.0)
 
 	var font = ThemeDB.fallback_font
@@ -802,16 +841,17 @@ func draw_hud():
 	draw_string(font, Vector2(160, 34), "HIGH: " + str(high_score), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("f1c40f"))
 
 	var curr_wave = waves[current_wave_index] if current_wave_index < waves.size() else waves[0]
-	draw_string(font, Vector2(362, 34), curr_wave["name"], HORIZONTAL_ALIGNMENT_CENTER, 300, 18, Color("ffffff"))
+	draw_string(font, Vector2(362, 34), curr_wave["stage"], HORIZONTAL_ALIGNMENT_CENTER, 300, 18, Color("ffffff"))
 
-	var hp_str = "HP: "
+	# Fancy Vector Heart Icons for Lives/HP
+	draw_string(font, Vector2(710, 34), "HP:", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("e74c3c"))
 	for i in range(lives):
-		hp_str += "<3 "
-	draw_string(font, Vector2(740, 34), hp_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("e74c3c"))
+		draw_heart_icon(Vector2(765 + i * 26, 28), 1.0)
 
 	var time_col = Color("e74c3c") if wave_time_left <= 5.0 else Color("2ecc71")
 	draw_string(font, Vector2(880, 34), "TIME: " + str(int(ceil(wave_time_left))) + "s", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, time_col)
 
+	# Ammo bar
 	var ammo_y = 768 - 45
 	draw_rect(Rect2(10, ammo_y, 220, 36), Color(0.1, 0.05, 0.01, 0.85))
 	draw_rect(Rect2(10, ammo_y, 220, 36), Color("c85a17"), false, 2.0)
@@ -833,19 +873,55 @@ func draw_hud():
 
 func draw_overlay_screens():
 	var font = ThemeDB.fallback_font
-	draw_rect(Rect2(0, 0, 1024, 768), Color(0.05, 0.02, 0.01, 0.88))
+	draw_rect(Rect2(0, 0, 1024, 768), Color(0.05, 0.02, 0.01, 0.92))
 
 	if current_state == GameState.START_SCREEN:
-		draw_string(font, Vector2(512 - 280, 280), "WILD WEST LIGHT GUN ARCADE", HORIZONTAL_ALIGNMENT_CENTER, -1, 32, Color("f1c40f"))
-		draw_string(font, Vector2(512 - 250, 360), "AIM & SHOOT OUTLAWS | SPARE CIVILIANS", HORIZONTAL_ALIGNMENT_CENTER, -1, 20, Color("ffffff"))
-		draw_string(font, Vector2(512 - 230, 400), "SPACE OR ON-SCREEN BUTTON TO RELOAD", HORIZONTAL_ALIGNMENT_CENTER, -1, 20, Color("ffffff"))
-		draw_string(font, Vector2(512 - 180, 500), "CLICK / TAP TO START GAME", HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("e74c3c"))
+		draw_string(font, Vector2(512 - 280, 260), "WILD WEST LIGHT GUN ARCADE", HORIZONTAL_ALIGNMENT_CENTER, -1, 32, Color("f1c40f"))
+		draw_string(font, Vector2(512 - 250, 340), "AIM & SHOOT OUTLAWS | SPARE CIVILIANS", HORIZONTAL_ALIGNMENT_CENTER, -1, 20, Color("ffffff"))
+		draw_string(font, Vector2(512 - 230, 380), "SPACE OR ON-SCREEN BUTTON TO RELOAD", HORIZONTAL_ALIGNMENT_CENTER, -1, 20, Color("ffffff"))
+
+		draw_rect(Rect2(312, 460, 400, 60), Color("c0392b"))
+		draw_rect(Rect2(312, 460, 400, 60), Color("ffffff"), false, 3.0)
+		draw_string(font, Vector2(512 - 140, 500), "CLICK / TAP TO START", HORIZONTAL_ALIGNMENT_CENTER, -1, 26, Color("ffffff"))
+
+	elif current_state == GameState.DIFFICULTY_SELECT:
+		draw_string(font, Vector2(512 - 180, 220), "SELECT DIFFICULTY LEVEL", HORIZONTAL_ALIGNMENT_CENTER, -1, 30, Color("f1c40f"))
+
+		var diff_options = [
+			{ "id": "easy", "label": "EASY (GREENHORN - 5 LIVES)", "y": 300, "col": Color("2ecc71") },
+			{ "id": "medium", "label": "MEDIUM (GUNSLINGER - 3 LIVES)", "y": 380, "col": Color("f39c12") },
+			{ "id": "hard", "label": "HARD (DESPERADO - 2 LIVES)", "y": 460, "col": Color("e74c3c") }
+		]
+
+		for opt in diff_options:
+			var box_col = Color("2c3e50") if selected_difficulty != opt["id"] else opt["col"]
+			draw_rect(Rect2(212, opt["y"], 600, 60), box_col)
+			draw_rect(Rect2(212, opt["y"], 600, 60), Color("ffffff"), false, 2.0)
+			draw_string(font, Vector2(512 - 220, opt["y"] + 38), opt["label"], HORIZONTAL_ALIGNMENT_CENTER, -1, 22, Color("ffffff"))
+
+	elif current_state == GameState.STORY_CUTSCENE:
+		draw_rect(Rect2(112, 160, 800, 440), Color(0.12, 0.06, 0.02, 0.95))
+		draw_rect(Rect2(112, 160, 800, 440), Color("f39c12"), false, 4.0)
+
+		draw_string(font, Vector2(512 - 140, 220), "- " + story_title + " -", HORIZONTAL_ALIGNMENT_CENTER, -1, 28, Color("f1c40f"))
+
+		# Split story text into lines
+		draw_string(font, Vector2(160, 290), "The year is 1888. Black Bart's gang has overtaken Red Canyon!", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffffff"))
+		draw_string(font, Vector2(160, 330), "They've barricaded the Saloon and taken innocent hostages.", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffffff"))
+		draw_string(font, Vector2(160, 370), "Grab your revolvers, Sheriff - shoot fast, shoot straight,", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffffff"))
+		draw_string(font, Vector2(160, 410), "and save the town from destruction!", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffffff"))
+
+		draw_rect(Rect2(362, 510, 300, 50), Color("e74c3c"))
+		draw_rect(Rect2(362, 510, 300, 50), Color("ffffff"), false, 2.0)
+		draw_string(font, Vector2(512 - 100, 542), "CLICK TO DRAW GUN!", HORIZONTAL_ALIGNMENT_CENTER, -1, 20, Color("ffffff"))
+
 	elif current_state == GameState.WAVE_CLEAR:
-		draw_string(font, Vector2(512 - 150, 300), "WAVE CLEARED!", HORIZONTAL_ALIGNMENT_CENTER, -1, 38, Color("2ecc71"))
-		draw_string(font, Vector2(512 - 140, 380), "CURRENT SCORE: " + str(score), HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("f1c40f"))
-		draw_string(font, Vector2(512 - 180, 480), "CLICK / TAP FOR NEXT WAVE", HORIZONTAL_ALIGNMENT_CENTER, -1, 22, Color("ffffff"))
+		draw_string(font, Vector2(512 - 150, 280), "STAGE CLEARED!", HORIZONTAL_ALIGNMENT_CENTER, -1, 38, Color("2ecc71"))
+		draw_string(font, Vector2(512 - 140, 360), "CURRENT SCORE: " + str(score), HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("f1c40f"))
+		draw_string(font, Vector2(512 - 180, 480), "CLICK / TAP FOR NEXT STAGE", HORIZONTAL_ALIGNMENT_CENTER, -1, 22, Color("ffffff"))
+
 	elif current_state == GameState.GAME_OVER:
-		draw_string(font, Vector2(512 - 140, 280), "GAME OVER", HORIZONTAL_ALIGNMENT_CENTER, -1, 44, Color("e74c3c"))
-		draw_string(font, Vector2(512 - 120, 360), "FINAL SCORE: " + str(score), HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("ffffff"))
-		draw_string(font, Vector2(512 - 110, 400), "HIGH SCORE: " + str(high_score), HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("ffffff"))
-		draw_string(font, Vector2(512 - 150, 500), "CLICK / TAP TO RESTART", HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("f1c40f"))
+		draw_string(font, Vector2(512 - 140, 260), "GAME OVER", HORIZONTAL_ALIGNMENT_CENTER, -1, 44, Color("e74c3c"))
+		draw_string(font, Vector2(512 - 120, 340), "FINAL SCORE: " + str(score), HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("ffffff"))
+		draw_string(font, Vector2(512 - 110, 380), "HIGH SCORE: " + str(high_score), HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("ffffff"))
+		draw_string(font, Vector2(512 - 150, 480), "CLICK / TAP TO RESTART", HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("f1c40f"))
