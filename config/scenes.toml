@@ -1,60 +1,71 @@
 [game]
 title = "Wild West Arcade Light Gun"
 clip_size = 6
-max_lives = 3
 starting_lives = 3
 
-[mechanics]
-recoil_duration_ms = 100
-recoil_distance_px = 18
-muzzle_flash_ms = 70
-bullet_hole_duration_ms = 5000
+[story]
+title = "THE SALOON SIEGE"
+text = "The year is 1888. Black Bart's notorious gang of desperados has overtaken the town of Red Canyon! They've barricaded the Saloon and taken innocent townspeople hostage. Grab your revolvers, Sheriff - hit fast, shoot straight, and save the town!"
+
+[difficulties.easy]
+name = "EASY (GREENHORN)"
+target_visible_mult = 1.3
+spawn_rate_mult = 1.2
+starting_lives = 5
+
+[difficulties.medium]
+name = "MEDIUM (GUNSLINGER)"
+target_visible_mult = 1.0
+spawn_rate_mult = 1.0
+starting_lives = 3
+
+[difficulties.hard]
+name = "HARD (DESPERADO)"
+target_visible_mult = 0.75
+spawn_rate_mult = 0.8
+starting_lives = 2
 
 [[covers]]
 id = "window_top_left"
-x = 240
-y = 200
-width = 60
-height = 80
-label = "Balcony Left Window"
+x = 235
+y = 190
+width = 70
+height = 90
 
 [[covers]]
 id = "window_top_right"
-x = 724
-y = 200
-width = 60
-height = 80
-label = "Balcony Right Window"
+x = 715
+y = 190
+width = 70
+height = 90
 
 [[covers]]
 id = "door_bottom_left"
-x = 200
-y = 440
-width = 70
-height = 110
-label = "Saloon Left Door"
+x = 195
+y = 430
+width = 80
+height = 120
 
 [[covers]]
 id = "door_bottom_right"
-x = 754
-y = 440
-width = 70
-height = 110
-label = "Saloon Right Door"
+x = 749
+y = 430
+width = 80
+height = 120
 
 [[covers]]
 id = "balcony_center"
-x = 480
-y = 260
-width = 64
-height = 90
-label = "Balcony Center"
+x = 472
+y = 250
+width = 80
+height = 100
 
 [[waves]]
 id = 1
+stage = "STAGE 1: SALOON FRONT"
 name = "Wave 1: Dusty Outskirts"
 duration_sec = 30
-spawn_interval_ms = 1500
+spawn_interval_ms = 1400
 target_visible_duration_ms = 2200
 points_outlaw = 100
 points_civilian_penalty = 200
@@ -62,9 +73,10 @@ outlaw_ratio = 0.8
 
 [[waves]]
 id = 2
+stage = "STAGE 2: BANK VAULT SIEGE"
 name = "Wave 2: High Noon Showdown"
 duration_sec = 30
-spawn_interval_ms = 1100
+spawn_interval_ms = 1000
 target_visible_duration_ms = 1600
 points_outlaw = 150
 points_civilian_penalty = 250
@@ -72,10 +84,22 @@ outlaw_ratio = 0.7
 
 [[waves]]
 id = 3
+stage = "STAGE 3: TRAIN ROBBERY"
 name = "Wave 3: Outlaw Rampage"
 duration_sec = 35
-spawn_interval_ms = 800
+spawn_interval_ms = 750
 target_visible_duration_ms = 1200
 points_outlaw = 200
 points_civilian_penalty = 300
 outlaw_ratio = 0.65
+
+[[waves]]
+id = 4
+stage = "STAGE 4: OUTLAW HIDEOUT"
+name = "Wave 4: Black Bart's Revenge"
+duration_sec = 40
+spawn_interval_ms = 600
+target_visible_duration_ms = 1000
+points_outlaw = 300
+points_civilian_penalty = 400
+outlaw_ratio = 0.6
