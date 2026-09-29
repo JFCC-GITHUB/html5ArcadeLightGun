@@ -19,10 +19,10 @@ export class Renderer {
 
   render(gameState) {
     this.clear();
-    this.renderBackground();
+    this.renderBackground(gameState.bgType || 'saloon');
     this.renderTargets(gameState.activeTargets);
     this.renderBulletHoles(gameState.bulletHoles);
-    this.renderGunOverlay(gameState.recoilOffset);
+    this.renderGunOverlay(gameState.recoilOffset, gameState.crosshairX, gameState.crosshairY);
     if (gameState.muzzleFlashTimer > 0) {
       this.renderMuzzleFlash(gameState.crosshairX, gameState.crosshairY);
     }
@@ -30,108 +30,196 @@ export class Renderer {
     this.renderHUD(gameState);
   }
 
-  renderBackground() {
+  renderBackground(bgType = 'saloon') {
+    if (bgType === 'bank') {
+      this.renderBankBackground();
+    } else if (bgType === 'train') {
+      this.renderTrainBackground();
+    } else if (bgType === 'hideout') {
+      this.renderHideoutBackground();
+    } else {
+      this.renderSaloonBackground();
+    }
+  }
+
+  renderSaloonBackground() {
     const ctx = this.ctx;
 
-    // Sky Gradient (Dusty Desert Sunset)
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, 350);
+    // Sunset Sky
+    const skyGradient = ctx.createLinearGradient(0, 0, 0, 280);
     skyGradient.addColorStop(0, '#d35400');
     skyGradient.addColorStop(0.6, '#e67e22');
     skyGradient.addColorStop(1, '#f39c12');
     ctx.fillStyle = skyGradient;
-    ctx.fillRect(0, 0, this.internalWidth, 350);
+    ctx.fillRect(0, 0, this.internalWidth, 280);
 
-    // Distant Red Rock Mesa / Mountains
+    // Sun
+    ctx.fillStyle = '#f39c12';
+    ctx.beginPath();
+    ctx.arc(512, 220, 60, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Red Canyon Mountains
     ctx.fillStyle = '#78281f';
     ctx.beginPath();
-    ctx.moveTo(0, 350);
-    ctx.lineTo(80, 280);
-    ctx.lineTo(200, 280);
-    ctx.lineTo(300, 350);
-    ctx.lineTo(550, 310);
-    ctx.lineTo(700, 310);
-    ctx.lineTo(850, 350);
-    ctx.lineTo(1024, 320);
-    ctx.lineTo(1024, 350);
+    ctx.moveTo(0, 280);
+    ctx.lineTo(120, 180);
+    ctx.lineTo(280, 240);
+    ctx.lineTo(450, 160);
+    ctx.lineTo(650, 220);
+    ctx.lineTo(850, 150);
+    ctx.lineTo(1024, 260);
+    ctx.lineTo(1024, 280);
     ctx.closePath();
     ctx.fill();
 
-    // Desert Dirt Ground
-    ctx.fillStyle = '#5c2c16';
-    ctx.fillRect(0, 350, this.internalWidth, this.internalHeight - 350);
+    // Dusty Ground
+    ctx.fillStyle = '#8c4e2b';
+    ctx.fillRect(0, 280, this.internalWidth, 488);
 
-    // Dirt trails / tracks
-    ctx.strokeStyle = '#3e1d0e';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(100, 390); ctx.lineTo(900, 390);
-    ctx.moveTo(50, 420); ctx.lineTo(950, 420);
-    ctx.stroke();
-
-    // Saloon Main Structure (2-Story Wooden Building)
-    const saloonX = 180;
-    const saloonY = 120;
-    const saloonW = 664;
-    const saloonH = 460;
-
-    // Dark Wood Planks
+    // Wooden Saloon Building
     ctx.fillStyle = '#4a2511';
-    ctx.fillRect(saloonX, saloonY, saloonW, saloonH);
+    ctx.fillRect(160, 100, 704, 480);
 
-    // Horizontal Plank Details
-    ctx.strokeStyle = '#311709';
+    ctx.strokeStyle = '#2d160a';
     ctx.lineWidth = 2;
-    for (let py = saloonY + 20; py < saloonY + saloonH; py += 20) {
+    for (let py = 120; py < 580; py += 18) {
       ctx.beginPath();
-      ctx.moveTo(saloonX, py);
-      ctx.lineTo(saloonX + saloonW, py);
+      ctx.moveTo(160, py);
+      ctx.lineTo(864, py);
       ctx.stroke();
     }
 
-    // Roof & Overhang Trim
+    // Roof Trim & Signboard
     ctx.fillStyle = '#271207';
-    ctx.fillRect(saloonX - 15, saloonY - 15, saloonW + 30, 20);
-
-    // Saloon Signboard ("★ SALOON ★")
-    ctx.fillStyle = '#f39c12';
-    ctx.fillRect(saloonX + 180, saloonY - 45, 304, 40);
+    ctx.fillRect(145, 80, 734, 24);
+    ctx.fillStyle = '#d68910';
+    ctx.fillRect(340, 50, 344, 48);
     ctx.strokeStyle = '#271207';
     ctx.lineWidth = 4;
-    ctx.strokeRect(saloonX + 180, saloonY - 45, 304, 40);
+    ctx.strokeRect(340, 50, 344, 48);
 
     ctx.fillStyle = '#271207';
-    ctx.font = 'bold 24px "Courier New", monospace';
+    ctx.font = 'bold 22px "Courier New", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('★ SALOON ★', saloonX + saloonW / 2, saloonY - 18);
+    ctx.fillText('★ RED CANYON SALOON ★', 512, 82);
 
-    // Balcony Floor / Porch Divider
-    ctx.fillStyle = '#311709';
-    ctx.fillRect(saloonX - 10, saloonY + 160, saloonW + 20, 16);
-
-    // Balcony Railing Posts
+    // Balcony Railing
+    ctx.fillStyle = '#2d160a';
+    ctx.fillRect(160, 275, 704, 16);
     ctx.fillStyle = '#5c2c16';
-    for (let rx = saloonX; rx <= saloonX + saloonW; rx += 30) {
-      ctx.fillRect(rx, saloonY + 120, 6, 40);
+    for (let rx = 175; rx < 860; rx += 28) {
+      ctx.fillRect(rx, 235, 6, 40);
     }
-    ctx.fillRect(saloonX, saloonY + 120, saloonW, 6);
 
-    // Windows Top (Top Left & Top Right Covers)
-    ctx.fillStyle = '#170b04';
-    ctx.fillRect(240, 200, 60, 80); // Left Top Window
-    ctx.fillRect(724, 200, 60, 80); // Right Top Window
-    ctx.strokeStyle = '#271207';
+    // Doors & Windows
+    ctx.fillStyle = '#120803';
+    ctx.fillRect(235, 190, 70, 90);
+    ctx.fillRect(715, 190, 70, 90);
+    ctx.fillRect(472, 250, 80, 100);
+    ctx.fillRect(195, 430, 80, 120);
+    ctx.fillRect(749, 430, 80, 120);
+
+    // Barrels & Wagon Wheel
+    this.renderBarrel(370, 470);
+    this.renderBarrel(580, 470);
+  }
+
+  renderBankBackground() {
+    const ctx = this.ctx;
+    ctx.fillStyle = '#243342';
+    ctx.fillRect(0, 0, this.internalWidth, this.internalHeight);
+
+    // Steel Pillars
+    ctx.fillStyle = '#34495e';
+    ctx.fillRect(100, 80, 80, 580);
+    ctx.fillRect(844, 80, 80, 580);
+
+    // Vault Door Frame
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(180, 100, 664, 480);
+    ctx.strokeStyle = '#7f8c8d';
     ctx.lineWidth = 4;
-    ctx.strokeRect(240, 200, 60, 80);
-    ctx.strokeRect(724, 200, 60, 80);
+    ctx.strokeRect(180, 100, 664, 480);
 
-    // Doors Bottom (Left & Right Swinging Doors)
-    ctx.fillStyle = '#170b04';
-    ctx.fillRect(200, 440, 70, 110);
-    ctx.fillRect(754, 440, 70, 110);
+    // Iron Vault Door
+    ctx.fillStyle = '#7f8c8d';
+    ctx.beginPath(); ctx.arc(512, 340, 130, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#34495e';
+    ctx.beginPath(); ctx.arc(512, 340, 110, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f39c12';
+    ctx.beginPath(); ctx.arc(512, 340, 32, 0, Math.PI * 2); ctx.fill();
 
-    // Barrels in front for cover
-    this.renderBarrel(380, 460);
-    this.renderBarrel(590, 460);
+    // Gold Stacks
+    for (let gx = 300; gx < 420; gx += 35) {
+      for (let gy = 500; gy < 550; gy += 15) {
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(gx, gy, 30, 12);
+      }
+    }
+
+    // Cover Openings
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(235, 190, 70, 90);
+    ctx.fillRect(715, 190, 70, 90);
+    ctx.fillRect(472, 250, 80, 100);
+    ctx.fillRect(195, 430, 80, 120);
+    ctx.fillRect(749, 430, 80, 120);
+  }
+
+  renderTrainBackground() {
+    const ctx = this.ctx;
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(0, 0, this.internalWidth, 250);
+    ctx.fillStyle = '#d35400';
+    ctx.fillRect(0, 250, this.internalWidth, 150);
+
+    // Prairie Ground
+    ctx.fillStyle = '#8e44ad';
+    ctx.fillRect(0, 400, this.internalWidth, 368);
+
+    // Iron Tracks
+    ctx.fillStyle = '#7f8c8d';
+    ctx.fillRect(0, 530, this.internalWidth, 16);
+    ctx.fillRect(0, 560, this.internalWidth, 16);
+
+    // Train Car Interior
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(140, 100, 744, 440);
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(120, 80, 784, 30);
+
+    ctx.fillStyle = '#1a0e07';
+    ctx.fillRect(235, 190, 70, 90);
+    ctx.fillRect(715, 190, 70, 90);
+    ctx.fillRect(472, 250, 80, 100);
+    ctx.fillRect(195, 430, 80, 120);
+    ctx.fillRect(749, 430, 80, 120);
+  }
+
+  renderHideoutBackground() {
+    const ctx = this.ctx;
+    ctx.fillStyle = '#0b0914';
+    ctx.fillRect(0, 0, this.internalWidth, this.internalHeight);
+
+    ctx.fillStyle = '#f4f6f7';
+    ctx.beginPath(); ctx.arc(850, 120, 40, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#2e1a12';
+    ctx.fillRect(160, 120, 704, 460);
+
+    // Campfire
+    ctx.fillStyle = '#e67e22';
+    ctx.beginPath(); ctx.arc(512, 510, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath(); ctx.arc(512, 510, 12, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#06040a';
+    ctx.fillRect(235, 190, 70, 90);
+    ctx.fillRect(715, 190, 70, 90);
+    ctx.fillRect(472, 250, 80, 100);
+    ctx.fillRect(195, 430, 80, 120);
+    ctx.fillRect(749, 430, 80, 120);
   }
 
   renderBarrel(x, y) {
@@ -189,32 +277,83 @@ export class Renderer {
     });
   }
 
-  renderGunOverlay(recoilOffset) {
+  renderGunOverlay(recoilOffset, crosshairX, crosshairY) {
     const ctx = this.ctx;
-    const gunX = this.internalWidth / 2;
-    const gunY = this.internalHeight + recoilOffset;
+    const targetX = crosshairX !== null && crosshairX !== undefined ? crosshairX : 512;
+    const targetY = crosshairY !== null && crosshairY !== undefined ? crosshairY : 384;
 
-    // Revolver Barrel (Pixelized Arcade Style)
-    ctx.fillStyle = '#34495e';
-    ctx.fillRect(gunX - 16, gunY - 140, 32, 120);
+    const baseX = 512 + (targetX - 512) * 0.35;
+    const baseY = 750 + recoilOffset * 0.5;
 
-    // Sight Tip
-    ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(gunX - 4, gunY - 150, 8, 12);
+    const dx = targetX - baseX;
+    const dy = targetY - baseY;
+    let angle = Math.atan2(dy, dx) + Math.PI / 2;
+    const maxAngle = (40 * Math.PI) / 180;
+    angle = Math.max(-maxAngle, Math.min(maxAngle, angle));
+    const recoilTilt = -((recoilOffset * 0.8) * Math.PI) / 180;
 
-    // Cylinder Base
+    ctx.save();
+    ctx.translate(baseX, baseY);
+    ctx.rotate(angle + recoilTilt);
+    ctx.scale(1.1, 1.1);
+
+    // Revolver Shadow
+    ctx.fillStyle = 'rgba(10, 10, 10, 0.4)';
+    ctx.fillRect(-22, -185, 44, 150);
+
+    // Metallic Steel Barrel
     ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(gunX - 28, gunY - 40, 56, 50);
+    ctx.fillRect(-18, -180, 36, 140);
+    ctx.fillStyle = '#7f8c8d';
+    ctx.fillRect(-12, -180, 8, 140);
+    ctx.fillStyle = '#ecf0f1';
+    ctx.fillRect(-4, -180, 4, 140);
 
-    // Cylinder Details
+    // Front Sight & Fiber Optic Tip
     ctx.fillStyle = '#1a252f';
-    ctx.fillRect(gunX - 20, gunY - 30, 10, 30);
-    ctx.fillRect(gunX - 5, gunY - 30, 10, 30);
-    ctx.fillRect(gunX + 10, gunY - 30, 10, 30);
+    ctx.fillRect(-5, -192, 10, 14);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(-3, -190, 6, 8);
 
-    // Wooden Grip Bottom
+    // Cylinder Frame & Ejector
+    ctx.fillStyle = '#34495e';
+    ctx.fillRect(-20, -50, 40, 10);
+    ctx.fillStyle = '#1a252f';
+    ctx.fillRect(-34, -40, 68, 55);
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(-30, -36, 60, 47);
+    ctx.strokeStyle = '#7f8c8d';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(-30, -36, 60, 47);
+
+    // Chambers
+    for (let i = 0; i < 5; i++) {
+      const cx = -22 + i * 11;
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(cx - 3, -32, 6, 39);
+      ctx.fillStyle = '#f1c40f';
+      ctx.beginPath();
+      ctx.arc(cx, -12, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Polished Wooden Grip
     ctx.fillStyle = '#6e3c1b';
-    ctx.fillRect(gunX - 22, gunY + 10, 44, 40);
+    ctx.beginPath();
+    ctx.moveTo(-24, 25);
+    ctx.lineTo(24, 25);
+    ctx.lineTo(32, 95);
+    ctx.lineTo(-32, 95);
+    ctx.closePath();
+    ctx.fill();
+
+    // Brass Star Medallion
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.arc(0, 58, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
   }
 
   renderMuzzleFlash(x, y) {
