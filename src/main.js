@@ -328,6 +328,7 @@ class Game {
       clipSize: this.clipSize,
       isReloading: this.isReloading,
       waveName: wave ? wave.name : 'Wave 1',
+      bgType: wave ? (wave.bg_type || 'saloon') : 'saloon',
       timeLeft: this.waveTimeLeft,
       crosshairX: this.crosshairX,
       crosshairY: this.crosshairY,

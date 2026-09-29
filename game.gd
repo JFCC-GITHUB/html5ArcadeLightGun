@@ -722,89 +722,173 @@ func draw_stage_background():
 		draw_saloon_background()
 
 func draw_saloon_background():
-	draw_rect(Rect2(0, 0, 1024, 350), Color("e67e22"))
-	var pts = PackedVector2Array([
-		Vector2(0, 350), Vector2(80, 280), Vector2(200, 280),
-		Vector2(300, 350), Vector2(550, 310), Vector2(700, 310),
-		Vector2(850, 350), Vector2(1024, 320), Vector2(1024, 350)
+	# Sunset Sky
+	draw_rect(Rect2(0, 0, 1024, 280), Color("d35400"))
+	draw_rect(Rect2(0, 180, 1024, 100), Color("e67e22"))
+	# Sun
+	draw_circle(Vector2(512, 220), 60.0, Color("f39c12"))
+
+	# Red Canyon Mountains
+	var mountain_pts = PackedVector2Array([
+		Vector2(0, 280), Vector2(120, 180), Vector2(280, 240),
+		Vector2(450, 160), Vector2(650, 220), Vector2(850, 150),
+		Vector2(1024, 260), Vector2(1024, 280)
 	])
-	draw_colored_polygon(pts, Color("78281f"))
+	draw_colored_polygon(mountain_pts, Color("78281f"))
 
-	draw_rect(Rect2(0, 350, 1024, 418), Color("5c2c16"))
+	# Dusty Ground
+	draw_rect(Rect2(0, 280, 1024, 488), Color("8c4e2b"))
 
-	draw_rect(Rect2(180, 120, 664, 460), Color("4a2511"))
-	for py in range(140, 580, 20):
-		draw_line(Vector2(180, py), Vector2(844, py), Color("311709"), 2.0)
+	# Wooden Saloon Structure
+	draw_rect(Rect2(160, 100, 704, 480), Color("4a2511"))
+	# Horizontal Wood Planks
+	for py in range(120, 580, 18):
+		draw_line(Vector2(160, py), Vector2(864, py), Color("2d160a"), 2.0)
 
-	draw_rect(Rect2(165, 105, 694, 20), Color("271207"))
-	draw_rect(Rect2(360, 75, 304, 40), Color("f39c12"))
-	draw_rect(Rect2(360, 75, 304, 40), Color("271207"), false, 4.0)
-	draw_string(ThemeDB.fallback_font, Vector2(512 - 70, 103), "- SALOON -", HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color("271207"))
+	# Roof Trim & Saloon Signboard
+	draw_rect(Rect2(145, 80, 734, 24), Color("271207"))
+	draw_rect(Rect2(340, 50, 344, 48), Color("d68910"))
+	draw_rect(Rect2(340, 50, 344, 48), Color("271207"), false, 4.0)
+	draw_string(ThemeDB.fallback_font, Vector2(512 - 110, 82), "★ RED CANYON SALOON ★", HORIZONTAL_ALIGNMENT_CENTER, -1, 22, Color("271207"))
 
-	draw_rect(Rect2(170, 280, 684, 16), Color("311709"))
-	for rx in range(180, 844, 30):
-		draw_rect(Rect2(rx, 240, 6, 40), Color("5c2c16"))
+	# Balcony Railing
+	draw_rect(Rect2(160, 275, 704, 16), Color("2d160a"))
+	for rx in range(175, 860, 28):
+		draw_rect(Rect2(rx, 235, 6, 40), Color("5c2c16"))
 
-	draw_rect(Rect2(235, 190, 70, 90), Color("170b04"))
-	draw_rect(Rect2(715, 190, 70, 90), Color("170b04"))
-	draw_rect(Rect2(195, 430, 80, 120), Color("170b04"))
-	draw_rect(Rect2(749, 430, 80, 120), Color("170b04"))
+	# Door and Window Covers (Openings)
+	draw_rect(Rect2(235, 190, 70, 90), Color("120803")) # Top Left Window
+	draw_rect(Rect2(715, 190, 70, 90), Color("120803")) # Top Right Window
+	draw_rect(Rect2(472, 250, 80, 100), Color("120803")) # Balcony Center Door
+	draw_rect(Rect2(195, 430, 80, 120), Color("120803")) # Bottom Left Door
+	draw_rect(Rect2(749, 430, 80, 120), Color("120803")) # Bottom Right Door
 
-	draw_barrel(Vector2(380, 460))
-	draw_barrel(Vector2(590, 460))
+	# Window Frames & Shutters
+	draw_rect(Rect2(231, 186, 78, 98), Color("e67e22"), false, 3.0)
+	draw_rect(Rect2(711, 186, 78, 98), Color("e67e22"), false, 3.0)
+
+	# Water Barrels & Wagon Wheel Decor
+	draw_barrel(Vector2(370, 470))
+	draw_barrel(Vector2(580, 470))
+	draw_circle(Vector2(320, 520), 25.0, Color("3e1f0c"))
+	draw_circle(Vector2(320, 520), 20.0, Color("5c2c16"))
+	draw_circle(Vector2(320, 520), 6.0, Color("120803"))
 
 func draw_bank_background():
-	# Bank Vault Interior Wall
-	draw_rect(Rect2(0, 0, 1024, 768), Color("2c3e50")) # Marble Gray Wall
-	# Gold Coin Stacks
-	draw_circle(Vector2(300, 520), 40.0, Color("f1c40f"))
-	draw_circle(Vector2(720, 520), 40.0, Color("f1c40f"))
-	# Bank Vault Doors
-	draw_rect(Rect2(180, 120, 664, 460), Color("34495e"))
-	draw_circle(Vector2(512, 350), 120.0, Color("7f8c8d")) # Iron Vault Door
-	draw_circle(Vector2(512, 350), 100.0, Color("2c3e50"))
-	draw_circle(Vector2(512, 350), 30.0, Color("f39c12")) # Wheel Handle
+	# Bank Vault Marble & Steel Interior Wall
+	draw_rect(Rect2(0, 0, 1024, 768), Color("243342"))
+	for px in range(0, 1024, 128):
+		draw_line(Vector2(px, 0), Vector2(px, 768), Color("1a252f"), 2.0)
 
-	draw_rect(Rect2(235, 190, 70, 90), Color("1a252f"))
-	draw_rect(Rect2(715, 190, 70, 90), Color("1a252f"))
-	draw_rect(Rect2(195, 430, 80, 120), Color("1a252f"))
-	draw_rect(Rect2(749, 430, 80, 120), Color("1a252f"))
+	# Gold & Money Safe Pillars
+	draw_rect(Rect2(100, 80, 80, 580), Color("34495e"))
+	draw_rect(Rect2(844, 80, 80, 580), Color("34495e"))
+	draw_rect(Rect2(90, 70, 100, 20), Color("7f8c8d"))
+	draw_rect(Rect2(834, 70, 100, 20), Color("7f8c8d"))
+
+	# Vault Structure
+	draw_rect(Rect2(180, 100, 664, 480), Color("2c3e50"))
+	draw_rect(Rect2(180, 100, 664, 480), Color("7f8c8d"), false, 4.0)
+
+	# Giant Heavy Iron Vault Door
+	draw_circle(Vector2(512, 340), 130.0, Color("7f8c8d"))
+	draw_circle(Vector2(512, 340), 110.0, Color("34495e"))
+	draw_circle(Vector2(512, 340), 90.0, Color("2c3e50"))
+	# Combination Wheel Handle & Bolts
+	draw_circle(Vector2(512, 340), 32.0, Color("f39c12"))
+	for i in range(6):
+		var ang = i * (TAU / 6.0)
+		var bolt = Vector2(512, 340) + Vector2(cos(ang), sin(ang)) * 100.0
+		draw_circle(bolt, 8.0, Color("ecf0f1"))
+
+	# Stacks of Gold Bars
+	for gx in range(300, 420, 35):
+		for gy in range(500, 550, 15):
+			draw_rect(Rect2(gx, gy, 30, 12), Color("f1c40f"))
+			draw_rect(Rect2(gx, gy, 30, 12), Color("f39c12"), false, 1.0)
+	for gx in range(600, 720, 35):
+		for gy in range(500, 550, 15):
+			draw_rect(Rect2(gx, gy, 30, 12), Color("f1c40f"))
+			draw_rect(Rect2(gx, gy, 30, 12), Color("f39c12"), false, 1.0)
+
+	# Bank Vault Covers / Grates
+	draw_rect(Rect2(235, 190, 70, 90), Color("0f172a"))
+	draw_rect(Rect2(715, 190, 70, 90), Color("0f172a"))
+	draw_rect(Rect2(472, 250, 80, 100), Color("0f172a"))
+	draw_rect(Rect2(195, 430, 80, 120), Color("0f172a"))
+	draw_rect(Rect2(749, 430, 80, 120), Color("0f172a"))
 
 func draw_train_background():
-	# Train Motion Sky
-	draw_rect(Rect2(0, 0, 1024, 350), Color("d35400"))
-	draw_rect(Rect2(0, 350, 1024, 418), Color("7e5109")) # Moving ground
-	# Iron Rails
-	draw_rect(Rect2(0, 540, 1024, 20), Color("7f8c8d"))
-	# Wooden Train Car
-	draw_rect(Rect2(150, 120, 724, 420), Color("6e3c1b"))
-	draw_rect(Rect2(130, 100, 764, 24), Color("2c3e50")) # Train Roof
+	# Moving Prairie Landscape
+	draw_rect(Rect2(0, 0, 1024, 250), Color("e74c3c")) # Scorching Sun Sky
+	draw_rect(Rect2(0, 250, 1024, 150), Color("d35400"))
+	draw_circle(Vector2(800, 180), 50.0, Color("f1c40f"))
 
-	draw_rect(Rect2(235, 190, 70, 90), Color("1a0d00"))
-	draw_rect(Rect2(715, 190, 70, 90), Color("1a0d00"))
-	draw_rect(Rect2(195, 430, 80, 120), Color("1a0d00"))
-	draw_rect(Rect2(749, 430, 80, 120), Color("1a0d00"))
+	# Moving Desert Ground
+	draw_rect(Rect2(0, 400, 1024, 368), Color("8e44ad"))
+	var speed_line = int(Time.get_ticks_msec() * 0.8) % 100
+	for lx in range(-100, 1124, 100):
+		draw_line(Vector2(lx + speed_line, 550), Vector2(lx + speed_line - 40, 768), Color("6c3483"), 4.0)
+
+	# Railway Iron Tracks & Wooden Ties
+	draw_rect(Rect2(0, 530, 1024, 16), Color("7f8c8d"))
+	draw_rect(Rect2(0, 560, 1024, 16), Color("7f8c8d"))
+
+	# Passenger Train Freight Car Interior
+	draw_rect(Rect2(140, 100, 744, 440), Color("5d4037"))
+	draw_rect(Rect2(120, 80, 784, 30), Color("3e2723")) # Roof
+
+	# Wooden Plank Lines
+	for py in range(120, 530, 20):
+		draw_line(Vector2(140, py), Vector2(884, py), Color("3e2723"), 2.0)
+
+	# Train Doors & Window Covers
+	draw_rect(Rect2(235, 190, 70, 90), Color("1a0e07"))
+	draw_rect(Rect2(715, 190, 70, 90), Color("1a0e07"))
+	draw_rect(Rect2(472, 250, 80, 100), Color("1a0e07"))
+	draw_rect(Rect2(195, 430, 80, 120), Color("1a0e07"))
+	draw_rect(Rect2(749, 430, 80, 120), Color("1a0e07"))
+
+	# Cargo Wooden Crates
+	draw_rect(Rect2(360, 450, 70, 70), Color("8d6e63"))
+	draw_rect(Rect2(360, 450, 70, 70), Color("4e342e"), false, 3.0)
+	draw_line(Vector2(360, 450), Vector2(430, 520), Color("4e342e"), 2.0)
+
+	draw_rect(Rect2(590, 440, 80, 80), Color("8d6e63"))
+	draw_rect(Rect2(590, 440, 80, 80), Color("4e342e"), false, 3.0)
+	draw_line(Vector2(590, 440), Vector2(670, 520), Color("4e342e"), 2.0)
 
 func draw_hideout_background():
-	# Canyon Cavern / Night Sky
-	draw_rect(Rect2(0, 0, 1024, 768), Color("110b17")) # Starry Night Sky
-	# Cavern Rock Edges
-	var cave_pts = PackedVector2Array([
-		Vector2(0, 0), Vector2(250, 0), Vector2(150, 200), Vector2(0, 400)
+	# Night Sky in Red Canyon Cavern
+	draw_rect(Rect2(0, 0, 1024, 768), Color("0b0914"))
+	# Moon
+	draw_circle(Vector2(850, 120), 40.0, Color("f4f6f7"))
+	draw_circle(Vector2(835, 120), 35.0, Color("0b0914"))
+
+	# Rocky Cave Overhead Arch
+	var cave_top = PackedVector2Array([
+		Vector2(0, 0), Vector2(1024, 0), Vector2(1024, 120),
+		Vector2(800, 80), Vector2(512, 110), Vector2(200, 70), Vector2(0, 130)
 	])
-	draw_colored_polygon(cave_pts, Color("2c1d38"))
+	draw_colored_polygon(cave_top, Color("1c1427"))
 
-	# Campfire
-	draw_circle(Vector2(512, 500), 25.0, Color("e67e22"))
-	draw_circle(Vector2(512, 500), 12.0, Color("f1c40f"))
+	# Wooden Barricade Outpost Base
+	draw_rect(Rect2(160, 120, 704, 460), Color("2e1a12"))
+	for px in range(180, 860, 25):
+		draw_line(Vector2(px, 120), Vector2(px, 580), Color("170d09"), 3.0)
 
-	# Wooden Hideout Barricades
-	draw_rect(Rect2(180, 140, 664, 440), Color("3d2314"))
+	# Glowing Campfire in Center Foreground
+	var fire_glow = (sin(Time.get_ticks_msec() * 0.008) + 1.0) * 10.0
+	draw_circle(Vector2(512, 510), 35.0 + fire_glow, Color(0.9, 0.4, 0.1, 0.3))
+	draw_circle(Vector2(512, 510), 22.0, Color("e67e22"))
+	draw_circle(Vector2(512, 510), 12.0, Color("f1c40f"))
 
-	draw_rect(Rect2(235, 190, 70, 90), Color("0a050b"))
-	draw_rect(Rect2(715, 190, 70, 90), Color("0a050b"))
-	draw_rect(Rect2(195, 430, 80, 120), Color("0a050b"))
-	draw_rect(Rect2(749, 430, 80, 120), Color("0a050b"))
+	# Hideout Openings / Covers
+	draw_rect(Rect2(235, 190, 70, 90), Color("06040a"))
+	draw_rect(Rect2(715, 190, 70, 90), Color("06040a"))
+	draw_rect(Rect2(472, 250, 80, 100), Color("06040a"))
+	draw_rect(Rect2(195, 430, 80, 120), Color("06040a"))
+	draw_rect(Rect2(749, 430, 80, 120), Color("06040a"))
 
 func draw_barrel(pos: Vector2):
 	draw_rect(Rect2(pos.x, pos.y, 50, 70), Color("6e3c1b"))
@@ -832,76 +916,97 @@ func draw_detailed_outlaw(pos: Vector2, size: Vector2, pop_ratio: float):
 	var cx = pos.x + size.x / 2.0
 	var top = pos.y
 
+	# Drop shadow behind target
+	draw_ellipse(Vector2(cx, top + size.y * 0.95), 24.0, 8.0, Color(0, 0, 0, 0.4))
+
 	if pop_ratio > 0.15:
+		# Cowboy Hat with Brim & Red Band
 		var hat_brim = PackedVector2Array([
-			Vector2(cx - 34, top + 18), Vector2(cx, top + 10), Vector2(cx + 34, top + 18),
-			Vector2(cx + 30, top + 24), Vector2(cx, top + 16), Vector2(cx - 30, top + 24)
+			Vector2(cx - 36, top + 18), Vector2(cx, top + 8), Vector2(cx + 36, top + 18),
+			Vector2(cx + 32, top + 24), Vector2(cx, top + 15), Vector2(cx - 32, top + 24)
 		])
 		draw_colored_polygon(hat_brim, Color("3e1f0c"))
-		draw_rect(Rect2(cx - 18, top + 2, 36, 14), Color("4a2511"))
-		draw_rect(Rect2(cx - 18, top + 13, 36, 3), Color("b03a2e"))
+		draw_rect(Rect2(cx - 18, top + 0, 36, 16), Color("4a2511"))
+		draw_rect(Rect2(cx - 18, top + 12, 36, 4), Color("b03a2e"))
 
 	if pop_ratio > 0.25:
+		# Head & Threatening Eyes
 		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("f5cba7"))
-		draw_line(Vector2(cx - 13, top + 21), Vector2(cx - 3, top + 24), Color("1c2833"), 3.0)
-		draw_line(Vector2(cx + 3, top + 24), Vector2(cx + 13, top + 21), Color("1c2833"), 3.0)
-		draw_circle(Vector2(cx - 7, top + 26), 2.5, Color("e74c3c"))
-		draw_circle(Vector2(cx + 7, top + 26), 2.5, Color("e74c3c"))
+		# Angry Eyebrows
+		draw_line(Vector2(cx - 13, top + 22), Vector2(cx - 3, top + 25), Color("1c2833"), 3.0)
+		draw_line(Vector2(cx + 3, top + 25), Vector2(cx + 13, top + 22), Color("1c2833"), 3.0)
+		draw_circle(Vector2(cx - 7, top + 27), 3.0, Color("e74c3c"))
+		draw_circle(Vector2(cx + 7, top + 27), 3.0, Color("e74c3c"))
+		# Outlaw Mask / Red Bandana
 		var bandana = PackedVector2Array([
-			Vector2(cx - 16, top + 30), Vector2(cx + 16, top + 30),
-			Vector2(cx + 11, top + 46), Vector2(cx, top + 50), Vector2(cx - 11, top + 46)
+			Vector2(cx - 16, top + 31), Vector2(cx + 16, top + 31),
+			Vector2(cx + 11, top + 47), Vector2(cx, top + 52), Vector2(cx - 11, top + 47)
 		])
 		draw_colored_polygon(bandana, Color("c0392b"))
 
 	if pop_ratio > 0.45:
-		draw_rect(Rect2(cx - 20, top + 46, 40, 40), Color("283747"))
-		draw_rect(Rect2(cx - 24, top + 46, 12, 40), Color("78281f"))
-		draw_rect(Rect2(cx + 12, top + 46, 12, 40), Color("78281f"))
-		draw_rect(Rect2(cx + 22, top + 40, 22, 7), Color("515a5a"))
-		draw_rect(Rect2(cx + 20, top + 45, 7, 14), Color("3e1f0c"))
+		# Vest, Shirt, Belt & Aimed Revolver
+		draw_rect(Rect2(cx - 20, top + 46, 40, 42), Color("283747"))
+		draw_rect(Rect2(cx - 24, top + 46, 10, 42), Color("78281f"))
+		draw_rect(Rect2(cx + 14, top + 46, 10, 42), Color("78281f"))
+
+		# Outlaw Aiming Revolver Barrel towards Sheriff
+		draw_rect(Rect2(cx + 20, top + 38, 24, 8), Color("515a5a")) # Gun barrel
+		draw_rect(Rect2(cx + 18, top + 44, 8, 14), Color("3e1f0c")) # Gun grip
 
 func draw_detailed_fast_outlaw(pos: Vector2, size: Vector2, pop_ratio: float):
 	var cx = pos.x + size.x / 2.0
 	var top = pos.y
 
+	draw_ellipse(Vector2(cx, top + size.y * 0.95), 24.0, 8.0, Color(0, 0, 0, 0.4))
+
 	if pop_ratio > 0.15:
-		draw_rect(Rect2(cx - 36, top + 14, 72, 7), Color("17202a"))
+		# Black Desperado Sombrero Hat
+		draw_rect(Rect2(cx - 38, top + 14, 76, 8), Color("17202a"))
 		draw_rect(Rect2(cx - 20, top + 0, 40, 16), Color("1c2833"))
-		draw_rect(Rect2(cx - 20, top + 13, 40, 3), Color("f1c40f"))
+		draw_rect(Rect2(cx - 20, top + 13, 40, 3), Color("f1c40f")) # Gold trim
 
 	if pop_ratio > 0.25:
+		# Face with Eye Patch & Gold Tooth
 		draw_rect(Rect2(cx - 15, top + 18, 30, 26), Color("edbb99"))
-		draw_line(Vector2(cx - 15, top + 20), Vector2(cx + 15, top + 26), Color("17202a"), 2.0)
-		draw_rect(Rect2(cx - 11, top + 22, 9, 9), Color("17202a"))
-		draw_circle(Vector2(cx + 7, top + 25), 2.5, Color("f1c40f"))
+		draw_line(Vector2(cx - 15, top + 20), Vector2(cx + 15, top + 26), Color("17202a"), 2.5)
+		draw_rect(Rect2(cx - 11, top + 21, 10, 10), Color("17202a")) # Eye patch
+		draw_circle(Vector2(cx + 7, top + 25), 3.0, Color("f1c40f")) # Glinting eye
 		var mustache = PackedVector2Array([
-			Vector2(cx - 14, top + 34), Vector2(cx + 14, top + 34), Vector2(cx, top + 39)
+			Vector2(cx - 14, top + 34), Vector2(cx + 14, top + 34), Vector2(cx, top + 40)
 		])
 		draw_colored_polygon(mustache, Color("3e1f0c"))
 
 	if pop_ratio > 0.45:
-		draw_rect(Rect2(cx - 24, top + 42, 48, 44), Color("1a5276"))
-		draw_rect(Rect2(cx - 32, top + 36, 14, 7), Color("7f8c8d"))
-		draw_rect(Rect2(cx + 18, top + 36, 14, 7), Color("7f8c8d"))
+		# Dark Blue Duster Coat & Dual Revolvers
+		draw_rect(Rect2(cx - 24, top + 42, 48, 46), Color("1a5276"))
+		draw_rect(Rect2(cx - 34, top + 36, 16, 8), Color("7f8c8d")) # Left revolver
+		draw_rect(Rect2(cx + 18, top + 36, 16, 8), Color("7f8c8d")) # Right revolver
 
 func draw_detailed_civilian(pos: Vector2, size: Vector2, pop_ratio: float):
 	var cx = pos.x + size.x / 2.0
 	var top = pos.y
 
+	draw_ellipse(Vector2(cx, top + size.y * 0.95), 24.0, 8.0, Color(0, 0, 0, 0.4))
+
 	if pop_ratio > 0.15:
-		draw_circle(Vector2(cx, top + 16), 20.0, Color("f4d03f"))
+		# Bonnet / Straw Hat
+		draw_circle(Vector2(cx, top + 14), 22.0, Color("f4d03f"))
 
 	if pop_ratio > 0.25:
+		# Innocent Face with Surprised Big Eyes
 		draw_rect(Rect2(cx - 14, top + 16, 28, 24), Color("f5cba7"))
-		draw_circle(Vector2(cx - 7, top + 22), 3.5, Color("2980b9"))
-		draw_circle(Vector2(cx + 7, top + 22), 3.5, Color("2980b9"))
-		draw_circle(Vector2(cx, top + 32), 4.5, Color("78281f"))
+		draw_circle(Vector2(cx - 7, top + 22), 4.0, Color("2980b9"))
+		draw_circle(Vector2(cx + 7, top + 22), 4.0, Color("2980b9"))
+		draw_circle(Vector2(cx, top + 33), 5.0, Color("78281f")) # O-shaped surprised mouth
 
 	if pop_ratio > 0.45:
-		draw_rect(Rect2(cx - 22, top + 38, 44, 44), Color("27ae60"))
-		draw_rect(Rect2(cx - 12, top + 42, 24, 40), Color("ffffff"))
-		draw_rect(Rect2(cx - 28, top + 10, 9, 30), Color("f5cba7"))
-		draw_rect(Rect2(cx + 19, top + 10, 9, 30), Color("f5cba7"))
+		# Civilian Green Dress & Raised Surrendering Hands
+		draw_rect(Rect2(cx - 22, top + 38, 44, 46), Color("27ae60"))
+		draw_rect(Rect2(cx - 10, top + 42, 20, 42), Color("ffffff")) # Apron
+		# Hands Up in Panic!
+		draw_rect(Rect2(cx - 28, top + 8, 8, 32), Color("f5cba7"))
+		draw_rect(Rect2(cx + 20, top + 8, 8, 32), Color("f5cba7"))
 
 func draw_particles():
 	for p in particles:
@@ -921,35 +1026,82 @@ func draw_bullet_holes():
 		draw_circle(h["pos"], 4.0, Color("17202a"))
 		draw_arc(h["pos"], 6.0, 0, TAU, 8, Color("7f8c8d"), 1.0)
 
+func get_gun_barrel_tip() -> Vector2:
+	var base_x = 512.0 + (crosshair_pos.x - 512.0) * 0.35
+	var base_y = 750.0 + recoil_offset * 0.5
+	var gun_base = Vector2(base_x, base_y)
+	var dir = crosshair_pos - gun_base
+	var angle = clamp(dir.angle() + PI / 2.0, -deg_to_rad(40.0), deg_to_rad(40.0))
+	return gun_base + Vector2(0, -180).rotated(angle)
+
 func draw_gun_overlay():
-	# High-Detail Realistic Metallic Revolver Overlay
-	var gun_x = 512.0
-	var gun_y = 768.0 + recoil_offset
+	# High-Detail Realistic Metallic Revolver Overlay tracking crosshair target position
+	var base_x = 512.0 + (crosshair_pos.x - 512.0) * 0.35
+	var base_y = 750.0 + recoil_offset * 0.5
+	var gun_base = Vector2(base_x, base_y)
 
-	# Steel Barrel with Highlights & Gradients
-	draw_rect(Rect2(gun_x - 18, gun_y - 160, 36, 140), Color("2c3e50")) # Main Steel
-	draw_rect(Rect2(gun_x - 12, gun_y - 160, 6, 140), Color("95a5a6")) # Metallic Highlight
-	draw_rect(Rect2(gun_x - 4, gun_y - 170, 8, 14), Color("e74c3c")) # Red Front Sight Tip
+	var dir = crosshair_pos - gun_base
+	var target_angle = dir.angle() + PI / 2.0
+	target_angle = clamp(target_angle, -deg_to_rad(40.0), deg_to_rad(40.0))
+	var recoil_tilt = -deg_to_rad(recoil_offset * 0.8)
 
-	# Cylinder Base & Chamber Slots
-	draw_rect(Rect2(gun_x - 32, gun_y - 45, 64, 55), Color("34495e"))
-	draw_rect(Rect2(gun_x - 32, gun_y - 45, 64, 55), Color("7f8c8d"), false, 3.0)
+	draw_set_transform(gun_base, target_angle + recoil_tilt, Vector2(1.1, 1.1))
 
-	# Brass / Copper Bullet Heads inside Revolver Cylinder
-	for i in range(6):
-		var cx = gun_x - 22 + i * 9
-		draw_circle(Vector2(cx, gun_y - 20), 4.0, Color("f1c40f"))
+	# Revolver Shadow / Outline
+	draw_rect(Rect2(-22, -185, 44, 150), Color(0.05, 0.05, 0.05, 0.4))
 
-	# Mahogany Wooden Grip
+	# Metallic Steel Barrel with Highlights & Bevels
+	draw_rect(Rect2(-18, -180, 36, 140), Color("2c3e50")) # Main Dark Steel
+	draw_rect(Rect2(-12, -180, 8, 140), Color("7f8c8d")) # Light Reflection
+	draw_rect(Rect2(-4, -180, 4, 140), Color("ecf0f1")) # Specular Strip
+
+	# Front Sight & Red Fiber Optic Tip
+	draw_rect(Rect2(-5, -192, 10, 14), Color("1a252f"))
+	draw_rect(Rect2(-3, -190, 6, 8), Color("e74c3c"))
+
+	# Cylinder Frame & Ejector Rod
+	draw_rect(Rect2(-20, -50, 40, 10), Color("34495e"))
+	draw_rect(Rect2(-34, -40, 68, 55), Color("1a252f"))
+	draw_rect(Rect2(-30, -36, 60, 47), Color("2c3e50"))
+	draw_rect(Rect2(-30, -36, 60, 47), Color("7f8c8d"), false, 2.5)
+
+	# Fluted Cylinder Chambers
+	for i in range(5):
+		var cx = -22 + i * 11
+		draw_rect(Rect2(cx - 3, -32, 6, 39), Color("111827"))
+		draw_circle(Vector2(cx, -12), 4.0, Color("f1c40f")) # Brass Shell Base
+
+	# Revolver Hammer & Frame Recipient
+	draw_rect(Rect2(-8, 15, 16, 25), Color("2c3e50"))
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(-6, 15), Vector2(6, 15), Vector2(10, 35), Vector2(-10, 35)
+	]), Color("1a252f"))
+
+	# Polished Mahogany Wood Grip
 	var grip_pts = PackedVector2Array([
-		Vector2(gun_x - 24, gun_y + 10), Vector2(gun_x + 24, gun_y + 10),
-		Vector2(gun_x + 28, gun_y + 60), Vector2(gun_x - 28, gun_y + 60)
+		Vector2(-24, 25), Vector2(24, 25),
+		Vector2(32, 95), Vector2(-32, 95)
 	])
 	draw_colored_polygon(grip_pts, Color("6e3c1b"))
+	draw_polyline(grip_pts, Color("3d1e0b"), 3.0)
+	# Brass Star Medallion on Grip
+	draw_circle(Vector2(0, 58), 7.0, Color("f1c40f"))
+	draw_circle(Vector2(0, 58), 5.0, Color("d35400"))
+
+	# Reset Canvas Transform
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1, 1))
 
 func draw_muzzle_flash():
-	draw_circle(crosshair_pos, 35.0, Color("f1c40f"))
-	draw_circle(crosshair_pos, 18.0, Color("ffffff"))
+	var tip = get_gun_barrel_tip()
+	# Screen Muzzle Flash Burst
+	draw_circle(tip, 45.0, Color("f1c40f"))
+	draw_circle(tip, 25.0, Color("ffffff"))
+	# Starburst Rays
+	for i in range(8):
+		var ang = i * (TAU / 8.0)
+		var p1 = tip + Vector2(cos(ang), sin(ang)) * 20.0
+		var p2 = tip + Vector2(cos(ang), sin(ang)) * 65.0
+		draw_line(p1, p2, Color("f39c12"), 4.0)
 
 func draw_crosshair():
 	draw_arc(crosshair_pos, 12.0, 0, TAU, 16, Color("e74c3c"), 2.0)
