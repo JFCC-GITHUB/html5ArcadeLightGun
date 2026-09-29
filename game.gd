@@ -3,9 +3,9 @@ extends Node2D
 enum GameState { START_SCREEN, DIFFICULTY_SELECT, STORY_CUTSCENE, PLAYING, WAVE_CLEAR, GAME_OVER }
 
 var current_state = GameState.START_SCREEN
-var selected_difficulty = "medium" # easy | medium | hard
+var selected_difficulty = "medium"
 
-# Story & Configuration
+# Story & Config
 var story_title = "THE SALOON SIEGE"
 var story_text = "The year is 1888. Black Bart's gang has overtaken Red Canyon! They've barricaded the Saloon and taken hostages. Grab your revolvers, Sheriff - shoot fast, shoot straight, and save the town!"
 
@@ -52,6 +52,7 @@ var covers = [
 var waves = [
 	{
 		"stage": "STAGE 1: SALOON FRONT",
+		"bg_type": "saloon",
 		"name": "Wave 1: Dusty Outskirts",
 		"duration_sec": 30,
 		"spawn_interval_ms": 1400,
@@ -62,6 +63,7 @@ var waves = [
 	},
 	{
 		"stage": "STAGE 2: BANK VAULT SIEGE",
+		"bg_type": "bank",
 		"name": "Wave 2: High Noon Showdown",
 		"duration_sec": 30,
 		"spawn_interval_ms": 1000,
@@ -72,6 +74,7 @@ var waves = [
 	},
 	{
 		"stage": "STAGE 3: TRAIN ROBBERY",
+		"bg_type": "train",
 		"name": "Wave 3: Outlaw Rampage",
 		"duration_sec": 35,
 		"spawn_interval_ms": 750,
@@ -82,6 +85,7 @@ var waves = [
 	},
 	{
 		"stage": "STAGE 4: OUTLAW HIDEOUT",
+		"bg_type": "hideout",
 		"name": "Wave 4: Black Bart's Revenge",
 		"duration_sec": 40,
 		"spawn_interval_ms": 600,
@@ -93,6 +97,7 @@ var waves = [
 ]
 
 var audio_players = {}
+var bgm_player: AudioStreamPlayer
 
 func _ready():
 	load_toml_config()
@@ -191,9 +196,12 @@ func parse_simple_toml(text: String):
 
 	if temp_waves.size() > 0:
 		waves.clear()
+		var bg_types = ["saloon", "bank", "train", "hideout"]
+		var idx = 0
 		for w in temp_waves:
 			waves.append({
-				"stage": str(w.get("stage", "STAGE 1")),
+				"stage": str(w.get("stage", "STAGE " + str(idx + 1))),
+				"bg_type": bg_types[idx % bg_types.size()],
 				"name": str(w.get("name", "Wave")),
 				"duration_sec": int(w.get("duration_sec", 30)),
 				"spawn_interval_ms": int(w.get("spawn_interval_ms", 1500)),
@@ -202,6 +210,7 @@ func parse_simple_toml(text: String):
 				"points_civilian_penalty": int(w.get("points_civilian_penalty", 200)),
 				"outlaw_ratio": float(w.get("outlaw_ratio", 0.75))
 			})
+			idx += 1
 
 func setup_audio():
 	var sfx_dict = {
@@ -219,24 +228,37 @@ func setup_audio():
 		add_child(p)
 		audio_players[sfx_name] = p
 
+	bgm_player = AudioStreamPlayer.new()
+	bgm_player.stream = generate_bgm_wav()
+	add_child(bgm_player)
+
 func play_sfx(sfx_name: String):
 	if audio_players.has(sfx_name):
 		var p = audio_players[sfx_name]
 		if p and p.stream:
 			p.play()
 
+func start_bgm():
+	if bgm_player and not bgm_player.playing:
+		bgm_player.play()
+
+func stop_bgm():
+	if bgm_player and bgm_player.playing:
+		bgm_player.stop()
+
 func generate_gunshot_wav() -> AudioStreamWAV:
 	var sample_rate = 22050
-	var duration = 0.25
+	var duration = 0.3
 	var num_samples = int(sample_rate * duration)
 	var byte_array = PackedByteArray()
 	byte_array.resize(num_samples)
 
 	for i in range(num_samples):
 		var t = float(i) / float(num_samples)
-		var envelope = exp(-t * 12.0)
+		var envelope = exp(-t * 10.0)
 		var noise = (randf() * 2.0 - 1.0) * envelope
-		var val = int(clamp(noise * 127.0, -128.0, 127.0))
+		var bass = sin(t * 120.0 * TAU) * exp(-t * 15.0) * 0.6
+		var val = int(clamp((noise + bass) * 110.0, -128.0, 127.0))
 		byte_array[i] = (val + 256) % 256
 
 	var wav = AudioStreamWAV.new()
@@ -275,12 +297,12 @@ func generate_reload_wav() -> AudioStreamWAV:
 
 	for i in range(num_samples):
 		var t = float(i) / sample_rate
-		var click_phase = fmod(t, 0.1)
+		var click_phase = fmod(t, 0.08)
 		var val = 0
-		if click_phase < 0.04:
-			var env = (1.0 - click_phase / 0.04)
-			var sig = sin(t * 2000.0 * TAU) * env
-			val = int(clamp(sig * 100.0, -128.0, 127.0))
+		if click_phase < 0.03:
+			var env = (1.0 - click_phase / 0.03)
+			var sig = sin(t * 2200.0 * TAU) * env
+			val = int(clamp(sig * 110.0, -128.0, 127.0))
 		byte_array[i] = (val + 256) % 256
 
 	var wav = AudioStreamWAV.new()
@@ -351,6 +373,40 @@ func generate_hurt_wav() -> AudioStreamWAV:
 	wav.data = byte_array
 	return wav
 
+func generate_bgm_wav() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 4.0 # 4 second loopable Western action rhythm
+	var num_samples = int(sample_rate * duration)
+	var byte_array = PackedByteArray()
+	byte_array.resize(num_samples)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		# Rhythmic drum beat (bass drum every 0.5s, snare on 0.25s offset)
+		var beat = fmod(t, 0.5)
+		var drum = exp(-beat * 25.0) * sin(beat * 80.0 * TAU) * 0.5
+
+		# Western Bassline synth
+		var bass_freq = 110.0 # A2
+		var step = int(t * 4.0) % 4
+		if step == 1: bass_freq = 130.81 # C3
+		elif step == 2: bass_freq = 146.83 # D3
+		elif step == 3: bass_freq = 98.0 # G2
+
+		var bass = (fmod(t * bass_freq, 1.0) * 2.0 - 1.0) * 0.3
+
+		var val = int(clamp((drum + bass) * 70.0, -128.0, 127.0))
+		byte_array[i] = (val + 256) % 256
+
+	var wav = AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = sample_rate
+	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	wav.loop_begin = 0
+	wav.loop_end = num_samples
+	wav.data = byte_array
+	return wav
+
 func start_new_game():
 	score = 0
 	var diff_settings = difficulty_multipliers[selected_difficulty]
@@ -371,6 +427,7 @@ func start_wave(idx):
 	particles.clear()
 	floating_texts.clear()
 	current_state = GameState.PLAYING
+	start_bgm()
 
 func _input(event):
 	if event is InputEventMouseMotion:
@@ -394,7 +451,6 @@ func handle_action_at_pos(pos: Vector2):
 		play_sfx("reload")
 		return
 	elif current_state == GameState.DIFFICULTY_SELECT:
-		# Check difficulty selection boxes
 		if pos.x >= 212 and pos.x <= 812:
 			if pos.y >= 300 and pos.y <= 360:
 				selected_difficulty = "easy"
@@ -417,9 +473,11 @@ func handle_action_at_pos(pos: Vector2):
 			start_wave(current_wave_index + 1)
 		else:
 			current_state = GameState.DIFFICULTY_SELECT
+			stop_bgm()
 		return
 	elif current_state == GameState.GAME_OVER:
 		current_state = GameState.DIFFICULTY_SELECT
+		stop_bgm()
 		return
 
 	if pos.x >= 1024 - 160 and pos.y >= 768 - 60:
@@ -491,7 +549,6 @@ func shoot(pos: Vector2):
 
 				play_sfx("hit_outlaw")
 			else:
-				# Hit Civilian
 				combo_streak = 0
 				var penalty = int(curr_wave["points_civilian_penalty"])
 				score = max(0, score - penalty)
@@ -561,6 +618,7 @@ func _process(delta):
 	wave_time_left -= delta
 	if wave_time_left <= 0.0:
 		current_state = GameState.WAVE_CLEAR
+		stop_bgm()
 		queue_redraw()
 		return
 
@@ -584,6 +642,7 @@ func _process(delta):
 				play_sfx("hurt")
 				if lives <= 0:
 					current_state = GameState.GAME_OVER
+					stop_bgm()
 			active_targets.remove_at(i)
 
 	queue_redraw()
@@ -630,7 +689,7 @@ func _draw():
 		var offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * screen_shake_amount
 		draw_set_transform(offset)
 
-	draw_background()
+	draw_stage_background()
 	draw_targets()
 	draw_bullet_holes()
 	draw_particles()
@@ -649,7 +708,20 @@ func _draw():
 	if current_state != GameState.PLAYING:
 		draw_overlay_screens()
 
-func draw_background():
+func draw_stage_background():
+	var curr_wave = waves[current_wave_index] if current_wave_index < waves.size() else waves[0]
+	var bg_type = curr_wave.get("bg_type", "saloon")
+
+	if bg_type == "bank":
+		draw_bank_background()
+	elif bg_type == "train":
+		draw_train_background()
+	elif bg_type == "hideout":
+		draw_hideout_background()
+	else:
+		draw_saloon_background()
+
+func draw_saloon_background():
 	draw_rect(Rect2(0, 0, 1024, 350), Color("e67e22"))
 	var pts = PackedVector2Array([
 		Vector2(0, 350), Vector2(80, 280), Vector2(200, 280),
@@ -680,6 +752,59 @@ func draw_background():
 
 	draw_barrel(Vector2(380, 460))
 	draw_barrel(Vector2(590, 460))
+
+func draw_bank_background():
+	# Bank Vault Interior Wall
+	draw_rect(Rect2(0, 0, 1024, 768), Color("2c3e50")) # Marble Gray Wall
+	# Gold Coin Stacks
+	draw_circle(Vector2(300, 520), 40.0, Color("f1c40f"))
+	draw_circle(Vector2(720, 520), 40.0, Color("f1c40f"))
+	# Bank Vault Doors
+	draw_rect(Rect2(180, 120, 664, 460), Color("34495e"))
+	draw_circle(Vector2(512, 350), 120.0, Color("7f8c8d")) # Iron Vault Door
+	draw_circle(Vector2(512, 350), 100.0, Color("2c3e50"))
+	draw_circle(Vector2(512, 350), 30.0, Color("f39c12")) # Wheel Handle
+
+	draw_rect(Rect2(235, 190, 70, 90), Color("1a252f"))
+	draw_rect(Rect2(715, 190, 70, 90), Color("1a252f"))
+	draw_rect(Rect2(195, 430, 80, 120), Color("1a252f"))
+	draw_rect(Rect2(749, 430, 80, 120), Color("1a252f"))
+
+func draw_train_background():
+	# Train Motion Sky
+	draw_rect(Rect2(0, 0, 1024, 350), Color("d35400"))
+	draw_rect(Rect2(0, 350, 1024, 418), Color("7e5109")) # Moving ground
+	# Iron Rails
+	draw_rect(Rect2(0, 540, 1024, 20), Color("7f8c8d"))
+	# Wooden Train Car
+	draw_rect(Rect2(150, 120, 724, 420), Color("6e3c1b"))
+	draw_rect(Rect2(130, 100, 764, 24), Color("2c3e50")) # Train Roof
+
+	draw_rect(Rect2(235, 190, 70, 90), Color("1a0d00"))
+	draw_rect(Rect2(715, 190, 70, 90), Color("1a0d00"))
+	draw_rect(Rect2(195, 430, 80, 120), Color("1a0d00"))
+	draw_rect(Rect2(749, 430, 80, 120), Color("1a0d00"))
+
+func draw_hideout_background():
+	# Canyon Cavern / Night Sky
+	draw_rect(Rect2(0, 0, 1024, 768), Color("110b17")) # Starry Night Sky
+	# Cavern Rock Edges
+	var cave_pts = PackedVector2Array([
+		Vector2(0, 0), Vector2(250, 0), Vector2(150, 200), Vector2(0, 400)
+	])
+	draw_colored_polygon(cave_pts, Color("2c1d38"))
+
+	# Campfire
+	draw_circle(Vector2(512, 500), 25.0, Color("e67e22"))
+	draw_circle(Vector2(512, 500), 12.0, Color("f1c40f"))
+
+	# Wooden Hideout Barricades
+	draw_rect(Rect2(180, 140, 664, 440), Color("3d2314"))
+
+	draw_rect(Rect2(235, 190, 70, 90), Color("0a050b"))
+	draw_rect(Rect2(715, 190, 70, 90), Color("0a050b"))
+	draw_rect(Rect2(195, 430, 80, 120), Color("0a050b"))
+	draw_rect(Rect2(749, 430, 80, 120), Color("0a050b"))
 
 func draw_barrel(pos: Vector2):
 	draw_rect(Rect2(pos.x, pos.y, 50, 70), Color("6e3c1b"))
@@ -797,13 +922,30 @@ func draw_bullet_holes():
 		draw_arc(h["pos"], 6.0, 0, TAU, 8, Color("7f8c8d"), 1.0)
 
 func draw_gun_overlay():
+	# High-Detail Realistic Metallic Revolver Overlay
 	var gun_x = 512.0
 	var gun_y = 768.0 + recoil_offset
 
-	draw_rect(Rect2(gun_x - 16, gun_y - 140, 32, 120), Color("34495e"))
-	draw_rect(Rect2(gun_x - 4, gun_y - 150, 8, 12), Color("e74c3c"))
-	draw_rect(Rect2(gun_x - 28, gun_y - 40, 56, 50), Color("2c3e50"))
-	draw_rect(Rect2(gun_x - 22, gun_y + 10, 44, 40), Color("6e3c1b"))
+	# Steel Barrel with Highlights & Gradients
+	draw_rect(Rect2(gun_x - 18, gun_y - 160, 36, 140), Color("2c3e50")) # Main Steel
+	draw_rect(Rect2(gun_x - 12, gun_y - 160, 6, 140), Color("95a5a6")) # Metallic Highlight
+	draw_rect(Rect2(gun_x - 4, gun_y - 170, 8, 14), Color("e74c3c")) # Red Front Sight Tip
+
+	# Cylinder Base & Chamber Slots
+	draw_rect(Rect2(gun_x - 32, gun_y - 45, 64, 55), Color("34495e"))
+	draw_rect(Rect2(gun_x - 32, gun_y - 45, 64, 55), Color("7f8c8d"), false, 3.0)
+
+	# Brass / Copper Bullet Heads inside Revolver Cylinder
+	for i in range(6):
+		var cx = gun_x - 22 + i * 9
+		draw_circle(Vector2(cx, gun_y - 20), 4.0, Color("f1c40f"))
+
+	# Mahogany Wooden Grip
+	var grip_pts = PackedVector2Array([
+		Vector2(gun_x - 24, gun_y + 10), Vector2(gun_x + 24, gun_y + 10),
+		Vector2(gun_x + 28, gun_y + 60), Vector2(gun_x - 28, gun_y + 60)
+	])
+	draw_colored_polygon(grip_pts, Color("6e3c1b"))
 
 func draw_muzzle_flash():
 	draw_circle(crosshair_pos, 35.0, Color("f1c40f"))
@@ -818,13 +960,9 @@ func draw_crosshair():
 	draw_rect(Rect2(crosshair_pos - Vector2(1, 1), Vector2(2, 2)), Color("f1c40f"))
 
 func draw_heart_icon(pos: Vector2, scale_factor: float = 1.0):
-	# Drawing a fancy vector heart icon
 	var red = Color("e74c3c")
-	var dark_red = Color("922b21")
-	# Left & Right heart circles
 	draw_circle(pos + Vector2(-5 * scale_factor, -3 * scale_factor), 6.0 * scale_factor, red)
 	draw_circle(pos + Vector2(5 * scale_factor, -3 * scale_factor), 6.0 * scale_factor, red)
-	# Bottom heart triangle tip
 	var tri = PackedVector2Array([
 		pos + Vector2(-11 * scale_factor, -2 * scale_factor),
 		pos + Vector2(11 * scale_factor, -2 * scale_factor),
@@ -843,7 +981,6 @@ func draw_hud():
 	var curr_wave = waves[current_wave_index] if current_wave_index < waves.size() else waves[0]
 	draw_string(font, Vector2(362, 34), curr_wave["stage"], HORIZONTAL_ALIGNMENT_CENTER, 300, 18, Color("ffffff"))
 
-	# Fancy Vector Heart Icons for Lives/HP
 	draw_string(font, Vector2(710, 34), "HP:", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("e74c3c"))
 	for i in range(lives):
 		draw_heart_icon(Vector2(765 + i * 26, 28), 1.0)
@@ -851,7 +988,6 @@ func draw_hud():
 	var time_col = Color("e74c3c") if wave_time_left <= 5.0 else Color("2ecc71")
 	draw_string(font, Vector2(880, 34), "TIME: " + str(int(ceil(wave_time_left))) + "s", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, time_col)
 
-	# Ammo bar
 	var ammo_y = 768 - 45
 	draw_rect(Rect2(10, ammo_y, 220, 36), Color(0.1, 0.05, 0.01, 0.85))
 	draw_rect(Rect2(10, ammo_y, 220, 36), Color("c85a17"), false, 2.0)
@@ -905,7 +1041,6 @@ func draw_overlay_screens():
 
 		draw_string(font, Vector2(512 - 140, 220), "- " + story_title + " -", HORIZONTAL_ALIGNMENT_CENTER, -1, 28, Color("f1c40f"))
 
-		# Split story text into lines
 		draw_string(font, Vector2(160, 290), "The year is 1888. Black Bart's gang has overtaken Red Canyon!", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffffff"))
 		draw_string(font, Vector2(160, 330), "They've barricaded the Saloon and taken innocent hostages.", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffffff"))
 		draw_string(font, Vector2(160, 370), "Grab your revolvers, Sheriff - shoot fast, shoot straight,", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffffff"))
